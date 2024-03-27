@@ -60,9 +60,9 @@ class Dataset:
         self.H = self.data_dict['left']['image'].shape[1]
         self.W = self.data_dict['left']['image'].shape[2]
         print(self.H, self.W)
-        print(self.data_dict['left']['image'].shape[-1])
+        print(self.data_dict['left'].keys(), self.data_dict.keys())
     
-    def vectorise_data_imgage(self):
+    def vectorise_data_image(self):
         self.data_dict['left']['image'] = self.data_dict['left']['image'].reshape((self.N, self.H *self.W, -1))
         self.data_dict['right']['image'] = self.data_dict['right']['image'].reshape((self.N, self.H *self.W, -1))
         print(self.data_dict['left']['image'].shape) 
@@ -71,5 +71,6 @@ class Dataset:
 if __name__ == '__main__':
     data_dir = DATASET
     dataset = Dataset(data_dir)
-    dataset.vectorise_data_imgage()
+    print(dataset.data_dict.keys())
+    dataset.vectorise_data_image()
     
