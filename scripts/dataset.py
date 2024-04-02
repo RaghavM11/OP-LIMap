@@ -7,7 +7,7 @@ from PIL import Image
 DATASET = '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P003'
 class Dataset:
 
-    def __init__(self, data_dir, shuffle =False):
+    def __init__(self, data_dir, shuffle =False, flow = False):
         self.data_dir = data_dir
         self.shuffle = shuffle
         self.data_dict = {}  # dictionary to store the data
@@ -61,7 +61,10 @@ class Dataset:
         self.W = self.data_dict['left']['image'].shape[2]
         print(self.H, self.W)
         print(self.data_dict['left'].keys(), self.data_dict.keys())
-    
+
+    def load_flow(self):
+        pass
+
     def vectorise_data_image(self):
         self.data_dict['left']['image'] = self.data_dict['left']['image'].reshape((self.N, self.H *self.W, -1))
         self.data_dict['right']['image'] = self.data_dict['right']['image'].reshape((self.N, self.H *self.W, -1))
