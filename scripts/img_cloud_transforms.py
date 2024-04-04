@@ -117,6 +117,9 @@ def cloud_to_img_np(cloud: PointCloud,
     # for loop.
     img = np.zeros((img_height, img_width, 3), dtype=np.uint8)
     for i in range(uv_coords.shape[1]):
+        # I've got some funky transpose in here to where the image coordinates are backwards
+        # compared to what I expect. I'm not too worried about it at the moment but I should fix it
+        # at some point.
         v, u = uv_coords[:, i]
         if v >= img_width or u >= img_height:
             print(f"({u}, {v}) out of bounds!")
