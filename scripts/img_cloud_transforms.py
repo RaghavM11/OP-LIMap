@@ -113,19 +113,21 @@ def cloud_to_img_np(cloud: PointCloud,
     warn("May want to use interpolation for cloud to image conversion. If you see holes in the "
          "image resulting from this conversion, implement interpolation scheme.")
 
-    # TODO: Use numpy's fancy indexing to place the RGB values in the image versus this bone-headed
-    # for loop.
     img = np.zeros((img_height, img_width, 3), dtype=np.uint8)
-    for i in range(uv_coords.shape[1]):
-        # I've got some funky transpose in here to where the image coordinates are backwards
-        # compared to what I expect. I'm not too worried about it at the moment but I should fix it
-        # at some point.
-        v, u = uv_coords[:, i]
-        if v >= img_width or u >= img_height:
-            print(f"({u}, {v}) out of bounds!")
-            continue
-        rgb = cloud.rgb[i, :]
-        img[u, v, :] = rgb
+
+    # I've got some funky transpose in here to where the image coordinates are backwards compared to
+    # what I expect. I'm not too worried about it at the moment but I should fix it at some point.
+    img[uv_coords[1], uv_coords[0], :] = cloud.rgb
+
+    # Old for loop implementation. Keeping this in case we need it for the intepolation we might
+    # wind up doing to handle camera distortions.
+    # for i in range(uv_coords.shape[1]):
+    #     v, u = uv_coords[:, i]
+    #     if v >= img_width or u >= img_height:
+    #         print(f"({u}, {v}) out of bounds!")
+    #         continue
+    #     rgb = cloud.rgb[i, :]
+    #     img[u, v, :] = rgb
 
     return img
 
