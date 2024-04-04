@@ -1,9 +1,12 @@
 from typing import Tuple
 from warnings import warn
+import copy
 
 import numpy as np
 import torch
 # import cv2
+
+from .constants import CAM_INTRINSIC
 
 # TartainAir depth unit is meters.
 MILLIMETERS_TO_METERS = 1e-3
@@ -110,6 +113,13 @@ def cloud_to_img_np(cloud: PointCloud,
 
     uv_coords = np.round(np.stack((us, vs), axis=0)).astype(int)
 
+    where_u_valid = np.logical_and(uv_coords[0] >= 0, uv_coords[0] < img_width)
+    where_v_valid = np.logical_and(uv_coords[1] >= 0, uv_coords[1] < img_height)
+    where_uv_valid = np.logical_and(where_u_valid, where_v_valid)
+
+    uv_coords = uv_coords[:, where_uv_valid]
+    rgb_valid = cloud.rgb[where_uv_valid, :]
+
     warn("May want to use interpolation for cloud to image conversion. If you see holes in the "
          "image resulting from this conversion, implement interpolation scheme.")
 
@@ -117,7 +127,7 @@ def cloud_to_img_np(cloud: PointCloud,
 
     # I've got some funky transpose in here to where the image coordinates are backwards compared to
     # what I expect. I'm not too worried about it at the moment but I should fix it at some point.
-    img[uv_coords[1], uv_coords[0], :] = cloud.rgb
+    img[uv_coords[1], uv_coords[0], :] = rgb_valid
 
     # Old for loop implementation. Keeping this in case we need it for the intepolation we might
     # wind up doing to handle camera distortions.
@@ -130,6 +140,27 @@ def cloud_to_img_np(cloud: PointCloud,
     #     img[u, v, :] = rgb
 
     return img
+
+
+def transform_cloud(cloud: PointCloud, H: np.ndarray) -> PointCloud:
+    """Transforms a point coud from one frame to another using a homogeneous tform matrix"""
+    cloud_tformed = copy.deepcopy(cloud)
+
+    # Augment the xyz cloud with 1s so transform matmul works.
+    xyz_aug = np.hstack([cloud_tformed.xyz, np.ones((cloud_tformed.xyz.shape[0], 1))])
+
+    xyz_tformed = (H @ xyz_aug.T).T
+    cloud_tformed.xyz = xyz_tformed[:, :-1]
+    return cloud_tformed
+
+
+def reproject_img(rgb_1: np.ndarray, depth_1: np.ndarray, pose_1: np.ndarray, pose_2: np.ndarray):
+    """Reprojects an image from frame 1 to frame 2 using the poses of the two frames."""
+    cloud_frame_1 = imgs_to_clouds_np(rgb_1, depth_1, CAM_INTRINSIC)
+    H_1_2 = np.linalg.inv(pose_1) @ pose_2
+    cloud_tformed = transform_cloud(cloud_frame_1, H_1_2)
+    img_tformed = cloud_to_img_np(cloud_tformed, CAM_INTRINSIC)
+    return img_tformed
 
 
 def imgs_to_clouds_torch(
