@@ -66,7 +66,7 @@ Check for the motion segmentation and segmenting static adn dynamic objects:
 
 Arguments: frame1, frame2, camera_pose1, camera_pose2
 '''
-def motion_segmentation(fr1, fr2, cp1, cp2):
+def motion_segmentation(fr1, fr2, depth1, depth2, cp1, cp2):
    from scipy.spatial.transform import Rotation as R
    flow = OpticalFlow(None)
    path = '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/raft-sintel.pth'
@@ -74,15 +74,29 @@ def motion_segmentation(fr1, fr2, cp1, cp2):
    # Now make the poses into the 4x4 matrices
    pose1 = np.eye(4)
    pose2 = np.eye(4)
+   # pcd1 
+   # pcd2 
+
+   # Now compute the transformation from pose1 to pose2
    pose1[:3, :3] = R.from_quat(cp1[3:]).as_matrix()
    pose1[:3, 3] = cp1[:3] 
    pose2[:3, :3] = R.from_quat(cp2[3:]).as_matrix()
    pose2[:3, 3] = cp2[:3]
+   p1_to_p2 = np.linalg.inv(pose2) @ pose1
 
-   # Project frame 1 in to the world frame
-   cam1 = np.linalg.inv(pose1)
-   
-   
+   # given the transformation matrix, we can now project the points from the first frame to the second frame
+   # transformed pcd inot the new camera frame
+   # project it back to the image plane
+
+    # Now we can compute the optical flow between the two frames
+    #flow_low, flow_up = flow.infer_flow(projected, fr2)
+    #flow_mag = np.linalg.norm(flow_up, axis = 0)
+    #threshold = 0.5
+    #static = flow_mag < threshold
+    #dynamic = flow_mag >= threshold
+    #return static, dynamic
+
+
 
 
 
