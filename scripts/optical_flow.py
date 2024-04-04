@@ -56,8 +56,37 @@ class OpticalFlow:
         flow = flow_viz.flow_to_image(flow)
         return flow
 
+'''
+Check for the motion segmentation and segmenting static adn dynamic objects:
+1) Project the frame at time t to the frame at time t+1 
+2) Compute the optical flow between the two frames
+3) Compute the flow magnitude
+4) Threshold the flow magnitude to get the static and dynamic objects
+5) Segment the objects based on the threshold
+
+Arguments: frame1, frame2, camera_pose1, camera_pose2
+'''
+def motion_segmentation(fr1, fr2, cp1, cp2):
+   from scipy.spatial.transform import Rotation as R
+   flow = OpticalFlow(None)
+   path = '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/raft-sintel.pth'
+   flow.load_model(path, Args())
+   # Now make the poses into the 4x4 matrices
+   pose1 = np.eye(4)
+   pose2 = np.eye(4)
+   pose1[:3, :3] = R.from_quat(cp1[3:]).as_matrix()
+   pose1[:3, 3] = cp1[:3] 
+   pose2[:3, :3] = R.from_quat(cp2[3:]).as_matrix()
+   pose2[:3, 3] = cp2[:3]
+
+   # Project frame 1 in to the world frame
+   cam1 = np.linalg.inv(pose1)
+   
+   
 
 
+
+   
 
 
 
