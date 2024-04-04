@@ -1,17 +1,29 @@
 from typing import Tuple
+from warnings import warn
 
 import numpy as np
 import torch
 # import cv2
 
+# TartainAir depth unit is meters.
 MILLIMETERS_TO_METERS = 1e-3
+METERS_TO_METERS = 1.0
 
 
 class PointCloud:
 
     def __init__(self, xyz: np.ndarray, rgb: np.ndarray):
-        self.xyz: np.ndarray = xyz
-        self.rgb: np.ndarray = rgb
+        self.xyz: np.ndarray = self._verify_shape(xyz)
+        if rgb.dtype != np.uint8:
+            raise ValueError("RGB array must be of type uint8")
+        self.rgb: np.ndarray = self._verify_shape(rgb)
+
+    def _verify_shape(self, arr: np.ndarray) -> np.ndarray:
+        if not arr.ndim == 2:
+            raise ValueError("Array must be 2D")
+        if not arr.shape[1] == 3:
+            raise ValueError(f"Array convention is [N_points, 3], got {arr.shape} instead.")
+        return arr
 
 
 def get_uv_coords(img_rows, img_cols):
@@ -24,8 +36,12 @@ def get_uv_coords(img_rows, img_cols):
 def imgs_to_clouds_np(rgb_img: np.ndarray,
                       depth_img: np.ndarray,
                       intrinsic: np.ndarray,
-                      depth_units_to_tracked_units: float = MILLIMETERS_TO_METERS) -> PointCloud:
-    """Converts RGB/D images to point clouds represented by XYZ and RGB arrays"""
+                      depth_units_to_tracked_units: float = METERS_TO_METERS) -> PointCloud:
+    """Converts RGB/D images to point clouds represented by XYZ and RGB arrays
+
+    This has a lot of commented code that can be used to filter out points given a 2D (segmentation)
+    mask. I don't think we'll need this but I'm keeping it in case we do.
+    """
     fx = intrinsic[0, 0]
     fy = intrinsic[1, 1]
 
@@ -47,6 +63,9 @@ def imgs_to_clouds_np(rgb_img: np.ndarray,
     # Z = 0 indicates the point is invalid in the depth images that I've been working with in the
     # lab. I'm not sure if TartanAir has a similar convention.
     where_depth_valid = zs != 0.0
+
+    # This can be used to apply a segmentation mask so that we get a segmented point cloud. I don't
+    # think we'll need this but I'm keeping it in case we do.
     # where_keep_points = np.logical_and(mask_flat, where_depth_valid)
     # where_keep_points = where_depth_valid
 
@@ -54,20 +73,19 @@ def imgs_to_clouds_np(rgb_img: np.ndarray,
     xyz_cloud_unfiltered = xyz_cloud_raw[:, where_depth_valid]
     # xyz_cloud_filtered = xyz_cloud_raw[:, where_keep_points]
 
-    # unfiltered_cloud_kwargs = {"xyz": xyz_cloud_unfiltered}
-    # filtered_cloud_kwargs = {"xyz": xyz_cloud_filtered}
-
     num_rgb_channels = rgb_img.shape[2]
     rgb_cloud_raw = rgb_img.reshape(-1, num_rgb_channels).T
     rgb_cloud_unfiltered = rgb_cloud_raw[:, where_depth_valid]
-    # filtered_cloud_kwargs["rgb"] = rgb_cloud_raw[:, where_keep_points]
+    # rgb_cloud_filtered = rgb_cloud_raw[:, where_keep_points]
 
-    return PointCloud(xyz_cloud_unfiltered, rgb_cloud_unfiltered)
+    return PointCloud(xyz_cloud_unfiltered.T, rgb_cloud_unfiltered.T)
 
 
 def cloud_to_img_np(cloud: PointCloud,
                     intrinsic: np.ndarray,
-                    depth_units_to_tracked_units: float = MILLIMETERS_TO_METERS):
+                    img_width: int,
+                    img_height: int,
+                    depth_units_to_tracked_units: float = METERS_TO_METERS) -> np.ndarray:
     """Turns cloud coordinates to UV (image) coordinates
 
     TODO: Do we need to do some sort of bilinear interpolation here to correct for camera
@@ -83,16 +101,30 @@ def cloud_to_img_np(cloud: PointCloud,
     constant_x = 1.0 / fx
     constant_y = 1.0 / fy
 
-    xs = cloud.xyz[0, :]
-    ys = cloud.xyz[1, :]
-    zs = cloud.xyz[2, :] / depth_units_to_tracked_units
+    xs = cloud.xyz[:, 0]
+    ys = cloud.xyz[:, 1]
+    zs = cloud.xyz[:, 2] / depth_units_to_tracked_units
 
     us = xs / (zs * depth_units_to_tracked_units * constant_x) + center_x
     vs = ys / (zs * depth_units_to_tracked_units * constant_y) + center_y
 
     uv_coords = np.round(np.stack((us, vs), axis=0)).astype(int)
 
-    return uv_coords, zs
+    warn("May want to use interpolation for cloud to image conversion. If you see holes in the "
+         "image resulting from this conversion, implement interpolation scheme.")
+
+    # TODO: Use numpy's fancy indexing to place the RGB values in the image versus this bone-headed
+    # for loop.
+    img = np.zeros((img_height, img_width, 3), dtype=np.uint8)
+    for i in range(uv_coords.shape[1]):
+        v, u = uv_coords[:, i]
+        if v >= img_width or u >= img_height:
+            print(f"({u}, {v}) out of bounds!")
+            continue
+        rgb = cloud.rgb[i, :]
+        img[u, v, :] = rgb
+
+    return img
 
 
 def imgs_to_clouds_torch(
@@ -100,8 +132,7 @@ def imgs_to_clouds_torch(
         depth_img: torch.Tensor,
         intrinsic: torch.Tensor,
         mask: torch.Tensor = None,
-        depth_units_to_tracked_units: float = MILLIMETERS_TO_METERS
-) -> Tuple[PointCloud, PointCloud]:
+        depth_units_to_tracked_units: float = METERS_TO_METERS) -> Tuple[PointCloud, PointCloud]:
     """Pretty faithful copy of the C++ image to cloud conversion routine"""
     raise NotImplementedError("This function is not yet implemented for PyTorch tensors.")
     fx = intrinsic[0, 0]
