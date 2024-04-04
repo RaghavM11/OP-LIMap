@@ -83,8 +83,8 @@ def imgs_to_clouds_np(rgb_img: np.ndarray,
 
 def cloud_to_img_np(cloud: PointCloud,
                     intrinsic: np.ndarray,
-                    img_width: int,
-                    img_height: int,
+                    img_width: int = 640,
+                    img_height: int = 480,
                     depth_units_to_tracked_units: float = METERS_TO_METERS) -> np.ndarray:
     """Turns cloud coordinates to UV (image) coordinates
 
