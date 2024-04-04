@@ -11,8 +11,8 @@ from utils import flow_viz
 from utils.utils import InputPadder
 from scipy.spatial.transform import Rotation as R
 
-from .img_cloud_transforms import reproject_img
-from .transforms_spatial import get_transform_matrix_from_pose_array
+from img_cloud_transforms import reproject_img
+from transforms_spatial import get_transform_matrix_from_pose_array
 
 
 class Args():
@@ -78,40 +78,6 @@ Check for the motion segmentation and segmenting static adn dynamic objects:
 
 Arguments: frame1, frame2, camera_pose1, camera_pose2
 '''
-<<<<<<< HEAD
-def motion_segmentation(fr1, fr2, depth1, depth2, cp1, cp2):
-   from scipy.spatial.transform import Rotation as R
-   flow = OpticalFlow(None)
-   path = '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/raft-sintel.pth'
-   flow.load_model(path, Args())
-   # Now make the poses into the 4x4 matrices
-   pose1 = np.eye(4)
-   pose2 = np.eye(4)
-   # pcd1 
-   # pcd2 
-
-   # Now compute the transformation from pose1 to pose2
-   pose1[:3, :3] = R.from_quat(cp1[3:]).as_matrix()
-   pose1[:3, 3] = cp1[:3] 
-   pose2[:3, :3] = R.from_quat(cp2[3:]).as_matrix()
-   pose2[:3, 3] = cp2[:3]
-   p1_to_p2 = np.linalg.inv(pose2) @ pose1
-
-   # given the transformation matrix, we can now project the points from the first frame to the second frame
-   # transformed pcd inot the new camera frame
-   # project it back to the image plane
-
-    # Now we can compute the optical flow between the two frames
-    #flow_low, flow_up = flow.infer_flow(projected, fr2)
-    #flow_mag = np.linalg.norm(flow_up, axis = 0)
-    #threshold = 0.5
-    #static = flow_mag < threshold
-    #dynamic = flow_mag >= threshold
-    #return static, dynamic
-
-
-=======
->>>>>>> 51e203ff74bc3164ca1da2f67e0c16f0eb35ec6e
 
 
 def motion_segmentation(rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarray,
@@ -128,7 +94,25 @@ def motion_segmentation(rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarra
 
     # Compute the optical flow between the two images in the same frame to determine dynamic
     # objects.
-
+    flow_low, flow_up = flow.infer_flow(rgb_2, img_1_in_frame_2)
+    # print(flow_up, flow_low)
+    flow_up = flow_up[0].permute(1, 2, 0).cpu().numpy()
+    mask = np.zeros_like(rgb_1)
+    mask[..., 1] = 255
+    mag, angle = cv2.cartToPolar(flow_up[..., 0], flow_up[..., 1], angleInDegrees=True)
+    mask[:, :, 0] = angle
+    mask[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+    mask_rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2RGB)
+    # viz_color = flow.visualize(flow_up)
+    # # now create a mask for the flow magnitude
+    # flow_mag = np.linalg.norm(flow_up[0].cpu().numpy(), axis=0)
+    # # print(flow_mag)
+    # # threshold the flow magnitude
+    # print(np.max(flow_mag), np.min(flow_mag), np.mean(flow_mag))
+    # plt.figure()
+    # plt.imshow(mask_rgb)
+    # plt.show()
+    return mask_rgb, mask
 
 if __name__ == '__main__':
     ten = torch.tensor([1, 2, 3, 4, 5])
@@ -144,9 +128,15 @@ if __name__ == '__main__':
         Image.open(
             '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/image_left/000092_left.png'
         ))
+    depth1 = np.load('/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/depth_left/000091_left_depth.npy')
+    depth2 = np.load('/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/depth_left/000092_left_depth.npy')
+
+    cam_pose = np.loadtxt('/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/pose_left.txt')
+    print(cam_pose.shape)
     flow_low, flow_up = flow.infer_flow(fr1, fr2)
-    flow_viz = flow.visualize(flow_up)
-    flow_viz = cv2.cvtColor(flow_viz, cv2.COLOR_RGB2BGR)
-    flow_viz = np.concatenate([fr1, flow_viz], axis=0)
-    cv2.imshow('flow', flow_viz / 255.0)
-    cv2.waitKey()
+    # flow_viz = flow.visualize(flow_up)
+    # flow_viz = cv2.cvtColor(flow_viz, cv2.COLOR_RGB2BGR)
+    # flow_viz = np.concatenate([fr1, flow_viz], axis=0)
+    motion_segmentation(fr1, depth1, fr2, depth2, cam_pose[91, : ], cam_pose[92, : ])
+    # cv2.imshow('flow', flow_viz / 255.0)
+    # cv2.waitKey()
