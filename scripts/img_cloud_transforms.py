@@ -6,7 +6,7 @@ import numpy as np
 import torch
 # import cv2
 
-from .constants import CAM_INTRINSIC
+from constants import CAM_INTRINSIC
 
 # TartainAir depth unit is meters.
 MILLIMETERS_TO_METERS = 1e-3
