@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from utils import flow_viz
 from utils.utils import InputPadder
 from scipy.spatial.transform import Rotation as R
+from scipy.ndimage import binary_dilation
 
 from img_cloud_transforms import reproject_img
 from transforms_spatial import get_transform_matrix_from_pose_array
@@ -104,10 +105,6 @@ def motion_segmentation(rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarra
     mask[:, :, 0] = 0
     mask[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
 
-    
-
-    
-
     mask_rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2RGB)
     mask_grey = cv2.cvtColor(mask_rgb, cv2.COLOR_RGB2GRAY)
     mean = np.mean(mask_grey)
@@ -128,6 +125,9 @@ def motion_segmentation(rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarra
     mask_g = (mask_rgb[:, :, 1] - mask_g)/cov_mask_g
     mask_b = (mask_rgb[:, :, 2] - mask_b)/cov_mask_b
     mask_rgb = np.stack([mask_r, mask_g, mask_b], axis=2)
+
+    # do binary dilation on the grey_mask
+    mask_grey = binary_dilation(mask_grey, iterations=5)
 
     # mask = np.asarray(mask_rgb[..., 2], dtype=np.uint8)
     # mask[mask < threshold] = 
