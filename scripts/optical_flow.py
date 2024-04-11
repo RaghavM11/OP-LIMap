@@ -135,9 +135,9 @@ def motion_segmentation(rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarra
     
     # Save it
 
-    plt.figure()
-    plt.imshow(mask_grey, cmap='gray')
-    plt.show()
+    # plt.figure()
+    # plt.imshow(mask_grey, cmap='gray')
+    # plt.show()
     return mask_rgb, mask_grey
 
 
