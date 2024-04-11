@@ -100,19 +100,47 @@ def motion_segmentation(rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarra
     mask = np.zeros_like(rgb_1)
     mask[..., 1] = 255
     mag, angle = cv2.cartToPolar(flow_up[..., 0], flow_up[..., 1], angleInDegrees=True)
-    mask[:, :, 0] = angle
+
+    mask[:, :, 0] = 0
     mask[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+
+    
+
+    
+
     mask_rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2RGB)
-    # viz_color = flow.visualize(flow_up)
-    # # now create a mask for the flow magnitude
-    # flow_mag = np.linalg.norm(flow_up[0].cpu().numpy(), axis=0)
-    # # print(flow_mag)
-    # # threshold the flow magnitude
-    # print(np.max(flow_mag), np.min(flow_mag), np.mean(flow_mag))
-    # plt.figure()
-    # plt.imshow(mask_rgb)
-    # plt.show()
-    return mask_rgb, mask
+    mask_grey = cv2.cvtColor(mask_rgb, cv2.COLOR_RGB2GRAY)
+    mean = np.mean(mask_grey)
+    print(mean)
+    std_deviation = np.std(mask_grey)
+    print(std_deviation)
+    mask_grey = (mask_grey - mean) / std_deviation
+    print(np.mean(mask_grey))
+    mask_grey = np.where(mask_grey < 0, 0, mask_grey)
+    mask_grey = np.where(mask_grey > 0.5, 1, 0)
+    mask_r = np.mean(mask_rgb[:, :, 0])
+    mask_g = np.mean(mask_rgb[:, :, 1])
+    mask_b = np.mean(mask_rgb[:, :, 2])
+    cov_mask_r = np.std(mask_rgb[:, :, 0])
+    cov_mask_g = np.std(mask_rgb[:, :, 1])
+    cov_mask_b = np.std(mask_rgb[:, :, 2])
+    mask_r = (mask_rgb[:, :, 0] - mask_r)/cov_mask_r
+    mask_g = (mask_rgb[:, :, 1] - mask_g)/cov_mask_g
+    mask_b = (mask_rgb[:, :, 2] - mask_b)/cov_mask_b
+    mask_rgb = np.stack([mask_r, mask_g, mask_b], axis=2)
+
+    # mask = np.asarray(mask_rgb[..., 2], dtype=np.uint8)
+    # mask[mask < threshold] = 
+    # mask[mask >= threshold] = 1
+    
+    # Save it
+
+    plt.figure()
+    plt.imshow(mask_grey, cmap='gray')
+    plt.show()
+    return mask_rgb, mask_grey
+
+
 
 if __name__ == '__main__':
     ten = torch.tensor([1, 2, 3, 4, 5])
@@ -132,7 +160,7 @@ if __name__ == '__main__':
     depth2 = np.load('/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/depth_left/000092_left_depth.npy')
 
     cam_pose = np.loadtxt('/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/pose_left.txt')
-    print(cam_pose.shape)
+    # print(cam_pose.shape)
     flow_low, flow_up = flow.infer_flow(fr1, fr2)
     # flow_viz = flow.visualize(flow_up)
     # flow_viz = cv2.cvtColor(flow_viz, cv2.COLOR_RGB2BGR)
