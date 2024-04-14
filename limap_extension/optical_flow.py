@@ -91,12 +91,9 @@ def motion_segmentation(rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarra
     # Reproject the image at time t to the image frame at time t+1
     img_1_in_frame_2, valid_bbox = reproject_img(rgb_1, depth_1, pose_1, pose_2)
 
-    # TODO(shlok): If you want to crop the image to the observable regions, do the following:
-    # x_min, x_max = valid_bbox[0, 0], valid_bbox[0, 1]
-    # y_min, y_max = valid_bbox[1, 0], valid_bbox[1, 1]
-    # img_1_in_frame_2[x_min:x_max, y_min:y_max, :]
-    # And then do the same for the second image.
-    # This gets rid of the black bits around the edges.
+    # Crop the images to the valid bounding box
+    img_1_in_frame_2 = valid_bbox.crop_img(img_1_in_frame_2)
+    rgb_2 = valid_bbox.crop_img(rgb_2)
 
     # Compute the optical flow between the two images in the same frame to determine dynamic
     # objects.
