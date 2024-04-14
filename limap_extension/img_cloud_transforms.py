@@ -5,9 +5,9 @@ import numpy as np
 import torch
 # import cv2
 
-from .constants import CAM_INTRINSIC
-from .bounding_box import BoundingBox
-from .point_cloud import PointCloud
+from limap_extension.constants import CAM_INTRINSIC
+from limap_extension.bounding_box import BoundingBox
+from limap_extension.point_cloud import PointCloud
 
 # TartainAir depth unit is meters.
 MILLIMETERS_TO_METERS = 1e-3

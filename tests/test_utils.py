@@ -10,7 +10,7 @@ CUR_DIR = Path(__file__).resolve().parent
 REPO_ROOT = CUR_DIR.parent
 
 sys.path.append(REPO_ROOT.as_posix())
-from scripts.transforms_spatial import get_transform_matrix_from_pose_array
+from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 
 DATA_DIR = CUR_DIR / "data" / "ocean" / "P006"
 
