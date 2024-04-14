@@ -108,13 +108,13 @@ def cloud_to_img_np(cloud: PointCloud,
     ys = cloud.xyz[:, 1]
     zs = cloud.xyz[:, 2] / depth_units_to_tracked_units
 
-    us = xs / (zs * depth_units_to_tracked_units * constant_x) + center_x
-    vs = ys / (zs * depth_units_to_tracked_units * constant_y) + center_y
+    vs = xs / (zs * depth_units_to_tracked_units * constant_x) + center_x
+    us = ys / (zs * depth_units_to_tracked_units * constant_y) + center_y
 
     uv_coords = np.round(np.stack((us, vs), axis=0)).astype(int)
 
-    where_u_valid = np.logical_and(uv_coords[0] >= 0, uv_coords[0] < img_width)
-    where_v_valid = np.logical_and(uv_coords[1] >= 0, uv_coords[1] < img_height)
+    where_u_valid = np.logical_and(uv_coords[0] >= 0, uv_coords[0] < img_height)
+    where_v_valid = np.logical_and(uv_coords[1] >= 0, uv_coords[1] < img_width)
     where_uv_valid = np.logical_and(where_u_valid, where_v_valid)
 
     uv_coords = uv_coords[:, where_uv_valid]
@@ -125,9 +125,7 @@ def cloud_to_img_np(cloud: PointCloud,
 
     img = np.zeros((img_height, img_width, 3), dtype=np.uint8)
 
-    # I've got some funky transpose in here to where the image coordinates are backwards compared to
-    # what I expect. I'm not too worried about it at the moment but I should fix it at some point.
-    img[uv_coords[1], uv_coords[0], :] = rgb_valid
+    img[uv_coords[0], uv_coords[1], :] = rgb_valid
 
     # Old for loop implementation. Keeping this in case we need it for the intepolation we might
     # wind up doing to handle camera distortions.
