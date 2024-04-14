@@ -107,7 +107,8 @@ def cloud_to_img_np(cloud: PointCloud,
                     img_width: int = 640,
                     img_height: int = 480,
                     depth_units_to_tracked_units: float = METERS_TO_METERS,
-                    corner_idxs: Optional[List[int]] = None) -> np.ndarray:
+                    corner_idxs: Optional[List[int]] = None,
+                    interpolation_method: Optional[str] = "clough_tocher") -> np.ndarray:
     """Turns cloud coordinates to UV (image) coordinates
 
     TODO: Do we need to do some sort of bilinear interpolation here to correct for camera
@@ -177,9 +178,37 @@ def cloud_to_img_np(cloud: PointCloud,
     warn("May want to use interpolation for cloud to image conversion. If you see holes in the "
          "image resulting from this conversion, implement interpolation scheme.")
 
-    img = np.zeros((img_height, img_width, 3), dtype=np.uint8)
+    # We could try to interpolate the non-rasterized points into the rasterized grid (I think numpy
+    # has a function for this)
+    if interpolation_method is None:
+        img = np.zeros((img_height, img_width, 3), dtype=np.uint8)
+        img[uv_coords[0], uv_coords[1], :] = rgb_valid
+    elif interpolation_method == "clough_tocher":
+        from scipy.interpolate import CloughTocher2DInterpolator
+        # from scipy.interpolate import LinearNDInterpolator
+        uv_coords = uv_coords.T
+        rgb_float = rgb_valid.astype(float)
+        U, V = get_uv_coords(img_height, img_width)
+        uv_coords_interp = np.stack((V.flatten(), U.flatten()), axis=1)
+        # print(uv_coords_interp.shape)
+        channels = []
+        for i in range(3):
+            interp = CloughTocher2DInterpolator(uv_coords, rgb_float[:, i])
+            # interp = LinearNDInterpolator(uv_coords, rgb_float[:, i])
+            channel = interp(uv_coords_interp)
 
-    img[uv_coords[0], uv_coords[1], :] = rgb_valid
+            # Process the output
+            channel = np.nan_to_num(channel, nan=0.0, posinf=255.0, neginf=0.0)
+            channel[channel < 0] = 0
+            channel[channel > 255] = 255
+
+            channels.append(channel.reshape((img_height, img_width)).astype(np.uint8))
+        img = np.stack(channels, axis=2).astype(np.uint8)
+    elif interpolation_method == "interpn":
+        # from scipy.interpolate import interpn
+        raise NotImplementedError("Interpolation method 'interpn' not yet implemented.")
+    else:
+        raise ValueError(f"Interpolation method {interpolation_method} not recognized.")
 
     # Old for loop implementation. Keeping this in case we need it for the intepolation we might
     # wind up doing to handle camera distortions.
@@ -206,12 +235,19 @@ def transform_cloud(cloud: PointCloud, H: np.ndarray) -> PointCloud:
     return cloud_tformed
 
 
-def reproject_img(rgb_1: np.ndarray, depth_1: np.ndarray, pose_1: np.ndarray, pose_2: np.ndarray):
+def reproject_img(rgb_1: np.ndarray,
+                  depth_1: np.ndarray,
+                  pose_1: np.ndarray,
+                  pose_2: np.ndarray,
+                  interpolation_method: Optional[str] = None) -> Tuple[np.ndarray, np.ndarray]:
     """Reprojects an image from frame 1 to frame 2 using the poses of the two frames."""
     cloud_frame_1, corner_idxs = imgs_to_clouds_np(rgb_1, depth_1, CAM_INTRINSIC)
     H_1_2 = np.linalg.inv(pose_1) @ pose_2
     cloud_tformed = transform_cloud(cloud_frame_1, H_1_2)
-    img_tformed, valid_bbox = cloud_to_img_np(cloud_tformed, CAM_INTRINSIC, corner_idxs=corner_idxs)
+    img_tformed, valid_bbox = cloud_to_img_np(cloud_tformed,
+                                              CAM_INTRINSIC,
+                                              corner_idxs=corner_idxs,
+                                              interpolation_method=interpolation_method)
     return img_tformed, valid_bbox
 
 
