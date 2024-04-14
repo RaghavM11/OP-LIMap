@@ -1,12 +1,12 @@
 from typing import Tuple, Optional, List
-from warnings import warn
 import copy
 
 import numpy as np
 import torch
 # import cv2
 
-from constants import CAM_INTRINSIC
+from .constants import CAM_INTRINSIC
+from .bounding_box import BoundingBox
 
 # TartainAir depth unit is meters.
 MILLIMETERS_TO_METERS = 1e-3
@@ -102,13 +102,14 @@ def imgs_to_clouds_np(rgb_img: np.ndarray,
     return PointCloud(xyz_cloud_unfiltered.T, rgb_cloud_unfiltered.T), corner_idxs
 
 
-def cloud_to_img_np(cloud: PointCloud,
-                    intrinsic: np.ndarray,
-                    img_width: int = 640,
-                    img_height: int = 480,
-                    depth_units_to_tracked_units: float = METERS_TO_METERS,
-                    corner_idxs: Optional[List[int]] = None,
-                    interpolation_method: Optional[str] = "clough_tocher") -> np.ndarray:
+def cloud_to_img_np(
+        cloud: PointCloud,
+        intrinsic: np.ndarray,
+        img_width: int = 640,
+        img_height: int = 480,
+        depth_units_to_tracked_units: float = METERS_TO_METERS,
+        corner_idxs: Optional[List[int]] = None,
+        interpolation_method: Optional[str] = "clough_tocher") -> Tuple[np.ndarray, BoundingBox]:
     """Turns cloud coordinates to UV (image) coordinates
 
     TODO: Do we need to do some sort of bilinear interpolation here to correct for camera
@@ -133,40 +134,14 @@ def cloud_to_img_np(cloud: PointCloud,
 
     uv_coords = np.round(np.stack((us, vs), axis=0)).astype(int)
 
-    # If no corner indexes are provided, the valid bounding box is the entire image.
-    valid_bbox = np.array(((0, img_height), (0, img_width)), dtype=int)
     if corner_idxs is not None:
+        # If no corner indexes are provided, the valid bounding box is the entire image.
+        valid_bbox = BoundingBox.from_cloud_corner_idxs(corner_idxs, uv_coords, img_height,
+                                                        img_width)
+    else:
         # If corner indexes are provided, we can use them to get a tighter bounding box on what
         # parts of image 1 are visible in image 2. This should help the flow out.
-        UPPER_LEFT_IDX = corner_idxs[0]
-        UPPER_RIGHT_IDX = corner_idxs[1]
-        LOWER_LEFT_IDX = corner_idxs[2]
-        LOWER_RIGHT_IDX = corner_idxs[3]
-
-        # yapf: disable
-        x_min_bound = np.max([
-            uv_coords[0, UPPER_LEFT_IDX],
-            uv_coords[0, UPPER_RIGHT_IDX],
-            0
-        ])
-        x_max_bound = np.min([
-            uv_coords[0, LOWER_LEFT_IDX],
-            uv_coords[0, LOWER_RIGHT_IDX],
-            img_height
-        ])
-        y_min_bound = np.max([
-            uv_coords[1, UPPER_LEFT_IDX],
-            uv_coords[1, LOWER_LEFT_IDX],
-            0
-        ])
-        y_max_bound = np.min([
-            uv_coords[1, UPPER_RIGHT_IDX],
-            uv_coords[1, LOWER_RIGHT_IDX],
-            img_width
-        ])
-        # yapf: enable
-
-        valid_bbox = np.array(((x_min_bound, x_max_bound), (y_min_bound, y_max_bound)), dtype=int)
+        valid_bbox = BoundingBox(0, img_height, 0, img_width)
 
     where_u_valid = np.logical_and(uv_coords[0] >= 0, uv_coords[0] < img_height)
     where_v_valid = np.logical_and(uv_coords[1] >= 0, uv_coords[1] < img_width)
@@ -174,9 +149,6 @@ def cloud_to_img_np(cloud: PointCloud,
 
     uv_coords = uv_coords[:, where_uv_valid]
     rgb_valid = cloud.rgb[where_uv_valid, :]
-
-    warn("May want to use interpolation for cloud to image conversion. If you see holes in the "
-         "image resulting from this conversion, implement interpolation scheme.")
 
     # We could try to interpolate the non-rasterized points into the rasterized grid (I think numpy
     # has a function for this)
@@ -239,7 +211,7 @@ def reproject_img(rgb_1: np.ndarray,
                   depth_1: np.ndarray,
                   pose_1: np.ndarray,
                   pose_2: np.ndarray,
-                  interpolation_method: Optional[str] = None) -> Tuple[np.ndarray, np.ndarray]:
+                  interpolation_method: Optional[str] = None) -> Tuple[np.ndarray, BoundingBox]:
     """Reprojects an image from frame 1 to frame 2 using the poses of the two frames."""
     cloud_frame_1, corner_idxs = imgs_to_clouds_np(rgb_1, depth_1, CAM_INTRINSIC)
     H_1_2 = np.linalg.inv(pose_1) @ pose_2
