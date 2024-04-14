@@ -71,7 +71,7 @@ class OpticalFlow:
 
 '''
 Check for the motion segmentation and segmenting static adn dynamic objects:
-1) Project the frame at time t to the frame at time t+1 
+1) Project the frame at time t to the frame at time t+1
 2) Compute the optical flow between the two frames
 3) Compute the flow magnitude
 4) Threshold the flow magnitude to get the static and dynamic objects
@@ -91,7 +91,14 @@ def motion_segmentation(rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarra
     pose_2 = get_transform_matrix_from_pose_array(cp2)
 
     # Reproject the image at time t to the image frame at time t+1
-    img_1_in_frame_2 = reproject_img(rgb_1, depth_1, pose_1, pose_2)
+    img_1_in_frame_2, valid_bbox = reproject_img(rgb_1, depth_1, pose_1, pose_2)
+
+    # TODO(shlok): If you want to crop the image to the observable regions, do the following:
+    # x_min, x_max = valid_bbox[0, 0], valid_bbox[0, 1]
+    # y_min, y_max = valid_bbox[1, 0], valid_bbox[1, 1]
+    # img_1_in_frame_2[x_min:x_max, y_min:y_max, :]
+    # And then do the same for the second image.
+    # This gets rid of the black bits around the edges.
 
     # Compute the optical flow between the two images in the same frame to determine dynamic
     # objects.
@@ -121,25 +128,24 @@ def motion_segmentation(rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarra
     cov_mask_r = np.std(mask_rgb[:, :, 0])
     cov_mask_g = np.std(mask_rgb[:, :, 1])
     cov_mask_b = np.std(mask_rgb[:, :, 2])
-    mask_r = (mask_rgb[:, :, 0] - mask_r)/cov_mask_r
-    mask_g = (mask_rgb[:, :, 1] - mask_g)/cov_mask_g
-    mask_b = (mask_rgb[:, :, 2] - mask_b)/cov_mask_b
+    mask_r = (mask_rgb[:, :, 0] - mask_r) / cov_mask_r
+    mask_g = (mask_rgb[:, :, 1] - mask_g) / cov_mask_g
+    mask_b = (mask_rgb[:, :, 2] - mask_b) / cov_mask_b
     mask_rgb = np.stack([mask_r, mask_g, mask_b], axis=2)
 
     # do binary dilation on the grey_mask
     mask_grey = binary_dilation(mask_grey, iterations=5)
 
     # mask = np.asarray(mask_rgb[..., 2], dtype=np.uint8)
-    # mask[mask < threshold] = 
+    # mask[mask < threshold] =
     # mask[mask >= threshold] = 1
-    
+
     # Save it
 
     # plt.figure()
     # plt.imshow(mask_grey, cmap='gray')
     # plt.show()
     return mask_rgb, mask_grey
-
 
 
 if __name__ == '__main__':
@@ -156,15 +162,21 @@ if __name__ == '__main__':
         Image.open(
             '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/image_left/000092_left.png'
         ))
-    depth1 = np.load('/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/depth_left/000091_left_depth.npy')
-    depth2 = np.load('/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/depth_left/000092_left_depth.npy')
+    depth1 = np.load(
+        '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/depth_left/000091_left_depth.npy'
+    )
+    depth2 = np.load(
+        '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/depth_left/000092_left_depth.npy'
+    )
 
-    cam_pose = np.loadtxt('/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/pose_left.txt')
+    cam_pose = np.loadtxt(
+        '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P006/pose_left.txt'
+    )
     # print(cam_pose.shape)
     flow_low, flow_up = flow.infer_flow(fr1, fr2)
     # flow_viz = flow.visualize(flow_up)
     # flow_viz = cv2.cvtColor(flow_viz, cv2.COLOR_RGB2BGR)
     # flow_viz = np.concatenate([fr1, flow_viz], axis=0)
-    motion_segmentation(fr1, depth1, fr2, depth2, cam_pose[91, : ], cam_pose[92, : ])
+    motion_segmentation(fr1, depth1, fr2, depth2, cam_pose[91, :], cam_pose[92, :])
     # cv2.imshow('flow', flow_viz / 255.0)
     # cv2.waitKey()
