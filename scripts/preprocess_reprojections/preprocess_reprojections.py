@@ -37,10 +37,10 @@ def read_img(trial_path: Path, img_type: ImageType, img_direction: ImageDirectio
              frame: int) -> np.array:
     """Reads the image at the given path."""
     img_dir = trial_path / f"{img_type.value}_{img_direction.value}"
-    img_name = f"{frame:06d}_{img_direction.value}_{img_type.value}"
+    img_name = f"{frame:06d}_{img_direction.value}"
 
     if img_type == ImageType.DEPTH:
-        img_name += ".npy"
+        img_name += f"_{img_type.value}.npy"
         img_path = img_dir / img_name
         img = np.load(img_path)
     elif img_type == ImageType.IMAGE:
@@ -68,8 +68,8 @@ def read_pose(trial_path: Path, img_direction: ImageDirection) -> np.ndarray:
     return pose
 
 
-def save_reprojection(dataset_path: Path, img_reproj: np.ndarray, valid_bbox: BoundingBox,
-                      img_direction: ImageDirection, frame_i: int, frame_j: int):
+def get_img_bbox_paths(dataset_path: Path, img_direction: ImageDirection, frame_i: int,
+                       frame_j: int):
     img_dir = dataset_path / f"reproj_{img_direction.value}"
     img_dir.mkdir(exist_ok=True)
 
@@ -80,9 +80,27 @@ def save_reprojection(dataset_path: Path, img_reproj: np.ndarray, valid_bbox: Bo
     img_path = img_dir / img_name
     bbox_path = img_dir / bbox_name
 
-    np.save(img_path, img_reproj)
+    return img_path, bbox_path
+
+
+def save_reprojection(dataset_path: Path, img_reproj: np.ndarray, valid_bbox: BoundingBox,
+                      img_direction: ImageDirection, frame_i: int, frame_j: int):
+
+    img_path, bbox_path = get_img_bbox_paths(dataset_path, img_direction, frame_i, frame_j)
+
+    # np.save(img_path, img_reproj)
+
+    img_reproj_pil = Image.fromarray(img_reproj)
+    img_reproj_pil.save(img_path)
+
+    print("Saved reprojection to:", img_path)
+
     with open(bbox_path, "wb") as f:
         pkl.dump(valid_bbox, f)
+
+    print("Saved bounding box to:", bbox_path)
+
+    return img_path, bbox_path
 
 
 def main():
