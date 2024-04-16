@@ -15,6 +15,7 @@ from preprocess_reprojections import (save_reprojection, read_rgbd, ImageType, I
 from limap_extension.img_cloud_transforms import reproject_img
 from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 
+# TODO: Put all of this stuff into config files that are read in by doit.
 DATASET_DIR = REPO_DIR / "datasets"
 
 SCENARIO = "ocean"
@@ -38,6 +39,24 @@ TARGET_LIST_LEFT = ROOT_DIR / "file_list_left.pkl"
 #         "file_dep": [REPO_ROOT / "scripts/preprocess_reprojections/dodo.py"],
 #         "targets": [file_list_path],
 #     }
+
+
+def targets_from_file_list(direction: ImageDirection):
+    if direction == ImageDirection.RIGHT:
+        file_list_path = TARGET_LIST_RIGHT
+    elif direction == ImageDirection.LEFT:
+        file_list_path = TARGET_LIST_LEFT
+
+    with open(file_list_path, 'rb') as f:
+        file_list = pkl.load(f)
+
+    targets = []
+    for (i, j) in file_list:
+        i = int(i)
+        j = int(j)
+        targets.append(get_img_bbox_paths(TRIAL_PATH, direction, i, j))
+
+    return targets
 
 
 def process_single_frame_pair(img_direction: ImageDirection, frame_start: int, poses: np.ndarray):
@@ -167,14 +186,51 @@ def task_process_left():
         }
 
 
+def task_zip_reprojections():
+
+    def get_zip_target(direction: ImageDirection):
+        return DATASET_DIR / f"{SCENARIO}_{DIFFICULTY}_{TRIAL}_reprojections_{direction.value}.zip"
+
+    def zip_reprojections(direction: ImageDirection):
+        import zipfile
+
+        # out_path = DATASET_DIR /
+        # f"{SCENARIO}_{DIFFICULTY}_{TRIAL}_reprojections_{direction.value}.zip"
+        out_path = get_zip_target(direction)
+        # in_dir = TRIAL_PATH / f"reproj_{direction.value}"
+
+        paths_to_zip = targets_from_file_list(direction)
+
+        with zipfile.ZipFile(out_path.as_posix(), 'w') as z:
+            # Want to write the zip file in a way that is easy to extract, so chop off everything
+            # prior to the scenario.
+            for path_pair in paths_to_zip:
+                for p in path_pair:
+                    # arc_name = out_path.relative_to(DATASET_DIR)
+                    arc_name = p.relative_to(DATASET_DIR)
+                    z.write(p, arc_name)
+
+    for direction in [ImageDirection.RIGHT, ImageDirection.LEFT]:
+        file_dep = [TARGET_LIST_RIGHT] if direction == ImageDirection.RIGHT else [TARGET_LIST_LEFT]
+        zip_target = get_zip_target(direction)
+        yield {
+            "basename": f"zip_reprojections_{direction.value}",
+            "actions": [(zip_reprojections, [direction])],
+            "file_dep": file_dep,
+            "targets": [zip_target],
+        }
+
+
 if __name__ == "__main__":
-    img_gt_dir = TRIAL_PATH / "image_right"
-    img_idxs = [int(img_path.stem.split("_")[0]) for img_path in img_gt_dir.iterdir()]
-    max_idx = max(img_idxs)
-    print("max_idx: ", max_idx)
+    # img_gt_dir = TRIAL_PATH / "image_right"
+    # img_idxs = [int(img_path.stem.split("_")[0]) for img_path in img_gt_dir.iterdir()]
+    # max_idx = max(img_idxs)
+    # print("max_idx: ", max_idx)
 
-    # img_name_template = "{idx:06d}_right.png"
+    # # img_name_template = "{idx:06d}_right.png"
 
-    for i in range(max_idx - 1):
-        process_single_frame_pair(ImageDirection.RIGHT, i, None)
-    #     print(f"img_path: {img_path}")
+    # for i in range(max_idx - 1):
+    #     process_single_frame_pair(ImageDirection.RIGHT, i, None)
+    # #     print(f"img_path: {img_path}")
+
+    print(targets_from_file_list(ImageDirection.RIGHT))
