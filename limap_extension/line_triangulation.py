@@ -143,6 +143,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         for pixel in dynamic_object_pixels:
             x, y = pixel
             # Note: the condition below may need to be changed because I do not know if the in operation works on arays or not
+            # .     In case it throws an error  just check individually
             # Note: segment is a Nx4/5 array where N is the number of segments and each segment is a 4/5 tuple of x1, y1, x2, y2, [score]
             if (x, y) in segment: # check if the location is in the segments already if so, remove the entire segment
                 segment.remove((x, y))
