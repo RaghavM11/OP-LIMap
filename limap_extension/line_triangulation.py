@@ -117,7 +117,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     neighbors, ranges = read_calc_fake_sfm_data()
 
     ##########################################################
-    # [B] get 2D line segments for each image
+    # [B] get 2D line segments for each image and prune them
     ##########################################################
     compute_descinfo = (not cfg["triangulation"]["use_exhaustive_matcher"])
     compute_descinfo = (compute_descinfo and (not cfg["load_match"]) and
@@ -127,7 +127,27 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
                                                             compute_descinfo=compute_descinfo)
 
     print("\n\nINSERT LINE PRUNING HERE\n\n")
-
+    # read the masks in from the config file
+    # assuming that all the masks from frames 1 - N are stored in masks as a NxHxWx1 matrix
+    masks = cfg["masks"]
+    # N is the number of frames
+    N = 10 # dummy need to change
+    for i in range(1, N):
+        mask = masks[i]
+        # fing dynamic object pixels in the mask and remove them from the 2d segments
+        # dynamic object pixels are denotes as 1's in the mask
+        segment= all_2d_segs[i]
+        # find the dynamic object pixels
+        dynamic_object_pixels = np.where(mask == 1)
+        # remove the dynamic object pixels from the 2d segments
+        for pixel in dynamic_object_pixels:
+            x, y = pixel
+            # Note: the condition below may need to be changed because I do not know if the in operation works on arays or not
+            # Note: segment is a Nx4/5 array where N is the number of segments and each segment is a 4/5 tuple of x1, y1, x2, y2, [score]
+            if (x, y) in segment: # check if the location is in the segments already if so, remove the entire segment
+                segment.remove((x, y))
+        all_2d_segs[i] = segment
+    
     ##########################################################
     # [C] get line matches
     ##########################################################
