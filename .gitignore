@@ -162,3 +162,6 @@ cython_debug/
 # Dylan added to ignore his pipenv virtual environment
 Pipfile
 Pipfile.lock
+
+# Ignore all data files
+datasets/
