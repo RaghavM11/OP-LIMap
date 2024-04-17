@@ -5,13 +5,55 @@ import numpy as np
 import torch
 # import cv2
 
-from limap_extension.constants import CAM_INTRINSIC, H_IMG_TO_CAM
+from limap_extension.constants import CAM_INTRINSIC, H_CAM_TO_NED, H_NED_TO_CAM
 from limap_extension.bounding_box import BoundingBox, CornerIdxs
 from limap_extension.point_cloud import PointCloud
+import limap_extension.transformation_tartanair as tf
+from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 
 # TartainAir depth unit is meters.
 MILLIMETERS_TO_METERS = 1e-3
 METERS_TO_METERS = 1.0
+
+
+def ned2cam_single_pose(pose: np.ndarray) -> np.ndarray:
+    """transfer a ned traj to camera frame traj"""
+    T = np.array([[0, 1, 0, 0], [0, 0, 1, 0], [1, 0, 0, 0], [0, 0, 0, 1]], dtype=np.float32)
+    T_inv = np.linalg.inv(T)
+    # new_traj = []
+    # traj_ses = tf.pos_quats2SE_matrices(np.array(traj))
+    # pose_mat = tf.pos_quat2SE(pose)
+    pose_mat = get_transform_matrix_from_pose_array(pose)
+
+    # for tt in traj_ses:
+    #     ttt = T.dot(tt).dot(T_inv)
+    #     new_traj.append(tf.SE2pos_quat(ttt))
+    new_pose = T @ pose_mat  #@ T_inv
+
+    return new_pose
+
+
+def cam2ned_single_pose(pose: np.ndarray) -> np.ndarray:
+    """transfer a camera traj to ned frame traj"""
+    T = np.array([[0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=np.float32)
+    T_inv = np.linalg.inv(T)
+    # new_traj = []
+    # traj_ses = tf.pos_quats2SE_matrices(np.array(traj))
+    pose_mat = tf.pos_quat2SE(pose)
+
+    # for tt in traj_ses:
+    #     ttt = T.dot(tt).dot(T_inv)
+    #     new_traj.append(tf.SE2pos_quat(ttt))
+
+    new_pose = T.dot(pose_mat).dot(T_inv)
+
+    # return np.array(new_traj)
+
+    return new_pose
+
+
+def index_img_with_uv_coords(us: np.ndarray, vs: np.ndarray, img: np.ndarray) -> np.ndarray:
+    return img[vs, us, ...]
 
 
 def get_uv_coords(img_rows, img_cols):
@@ -37,6 +79,22 @@ def tform_coords(tform: np.ndarray, coords: np.ndarray) -> np.ndarray:
     return (tform @ coords_aug.T).T[:, :-1]
 
 
+# def clip_uv_coords(us: np.ndarray, vs: np.ndarray, img_width: int, img_height: int) ->
+# Tuple[np.ndarray, np.ndarray]:
+def find_valid_uv_coords(us: np.ndarray, vs: np.ndarray, img_height: int,
+                         img_width: int) -> Tuple[np.ndarray, np.ndarray]:
+    if us.shape != vs.shape:
+        raise ValueError("Us and Vs must have the same shape.")
+
+    if us.dtype != int or vs.dtype != int:
+        raise ValueError("Us and Vs must be integers.")
+
+    where_u_valid = np.logical_and(us >= 0, us < img_width)
+    where_v_valid = np.logical_and(vs >= 0, vs < img_height)
+    where_uv_valid = np.logical_and(where_u_valid, where_v_valid)
+    return where_uv_valid
+
+
 def uvz_to_xyz(us: np.ndarray,
                vs: np.ndarray,
                zs: np.ndarray,
@@ -54,12 +112,15 @@ def uvz_to_xyz(us: np.ndarray,
     ys = (vs - center_v) * zs * depth_units_to_tracked_units * constant_v
     zs = zs * depth_units_to_tracked_units
 
-    xyzs_img = np.stack((xs, ys, zs), axis=1)
-    print("xyzs_img shape:", xyzs_img.shape)
+    # xyzs_img = np.stack((xs, ys, zs), axis=1)
+    xyzs_ned = np.stack((xs, ys, zs), axis=1)
+    print("xyzs_img shape:", xyzs_ned.shape)
     # xyzs_cam = (H_IMG_TO_CAM @ np.hstack([xyzs_img, np.ones((xyzs_img.shape[0], 1))]).T).T[:, :-1]
-    # xyzs_cam = tform_coords(H_IMG_TO_CAM, xyzs_img)
-    xyzs_cam = xyzs_img
+    # xyzs_cam = tform_coords(np.linalg.inv(H_IMG_TO_CAM), xyzs_img)
+    xyzs_cam = tform_coords(H_NED_TO_CAM, xyzs_ned)
+    # xyzs_cam =
     return xyzs_cam
+    # return xyzs_ned
 
 
 def xyz_to_uvz(
@@ -67,15 +128,16 @@ def xyz_to_uvz(
         is_rounding_to_int: bool = False,
         intrinsic: np.ndarray = CAM_INTRINSIC,
         depth_units_to_tracked_units: float = METERS_TO_METERS) -> Tuple[np.ndarray, np.ndarray]:
-    # xyz = tform_coords(np.linalg.inv(H_IMG_TO_CAM), xyz)
-    fx = intrinsic[0, 0]
-    fy = intrinsic[1, 1]
+    # xyz = tform_coords(H_IMG_TO_CAM, xyz)
+    xyz = tform_coords(H_CAM_TO_NED, xyz)
+    fu = intrinsic[0, 0]
+    fv = intrinsic[1, 1]
 
-    center_x = intrinsic[0, 2]
-    center_y = intrinsic[1, 2]
+    center_u = intrinsic[0, 2]
+    center_v = intrinsic[1, 2]
 
-    constant_x = 1.0 / fx
-    constant_y = 1.0 / fy
+    constant_u = 1.0 / fu
+    constant_v = 1.0 / fv
 
     # xyz = xyz.T
     xs = xyz[:, 0]
@@ -83,8 +145,8 @@ def xyz_to_uvz(
     zs = xyz[:, 2]
     zs = zs / depth_units_to_tracked_units
 
-    us = xs / (zs * depth_units_to_tracked_units * constant_x) + center_x
-    vs = ys / (zs * depth_units_to_tracked_units * constant_y) + center_y
+    us = (xs / (zs * depth_units_to_tracked_units * constant_u)) + center_u
+    vs = (ys / (zs * depth_units_to_tracked_units * constant_v)) + center_v
 
     if is_rounding_to_int:
         us = np.round(us).astype(int)
@@ -226,10 +288,10 @@ def cloud_to_img_np(cloud: PointCloud,
     us, vs, zs = xyz_to_uvz(cloud.xyz,
                             intrinsic=intrinsic,
                             depth_units_to_tracked_units=depth_units_to_tracked_units)
-    uv_coords = np.round(np.stack((us, vs), axis=0)).astype(int)
 
     if corner_idxs is not None:
         # If no corner indexes are provided, the valid bounding box is the entire image.
+        uv_coords = np.round(np.stack((us, vs), axis=0)).astype(int)
         valid_bbox = BoundingBox.from_cloud_corner_idxs(corner_idxs, uv_coords, img_height,
                                                         img_width)
     else:
@@ -237,11 +299,17 @@ def cloud_to_img_np(cloud: PointCloud,
         # parts of image 1 are visible in image 2. This should help the flow out.
         valid_bbox = BoundingBox(0, img_width - 1, 0, img_height - 1)
 
+    if interpolation_method is None:
+        us = np.round(us).astype(int)
+        vs = np.round(vs).astype(int)
+
     where_u_valid = np.logical_and(us >= 0, us < img_width)
     where_v_valid = np.logical_and(vs >= 0, vs < img_height)
     where_uv_valid = np.logical_and(where_u_valid, where_v_valid)
 
-    uv_coords = uv_coords[:, where_uv_valid]
+    us_valid = us[where_uv_valid]
+    vs_valid = vs[where_uv_valid]
+    # uv_coords = uv_coords[:, where_uv_valid]
     zs = zs[where_uv_valid]
     rgb_valid = cloud.rgb[where_uv_valid, :]
 
@@ -249,10 +317,11 @@ def cloud_to_img_np(cloud: PointCloud,
     # has a function for this)
     if interpolation_method is None:
         img = np.zeros((img_height, img_width, 3), dtype=np.uint8)
-        img[uv_coords[1], uv_coords[0], :] = rgb_valid
+        # print("uv_coords maxes:", np.max(uv_coords, axis=1))
+        img[vs_valid, us_valid, :] = rgb_valid
 
         depth_img = np.zeros((img_height, img_width), dtype=np.float32)
-        depth_img[uv_coords[1], uv_coords[0]] = zs
+        depth_img[vs_valid, us_valid] = zs
     elif interpolation_method == "clough_tocher":
         raise NotImplementedError("Clough-Tocher interpolation not yet implemented.")
         from scipy.interpolate import CloughTocher2DInterpolator
@@ -316,8 +385,28 @@ def reproject_img(rgb_1: np.ndarray,
     print("Cloud frame 1 maxes:", np.max(cloud_frame_1.xyz, axis=0))
     print("Cloud frame 1 mins:", np.min(cloud_frame_1.xyz, axis=0))
     # TODO: Make this use the formula instead of inverses!
-    H_1_2 = np.linalg.inv(np.linalg.inv(pose_1) @ pose_2)
-    cloud_tformed = transform_cloud(cloud_frame_1, H_1_2)
+    # H_1_2 = np.linalg.inv(np.linalg.inv(pose_1) @ pose_2)
+    # H_1_2 = np.linalg.inv(pose_1) @ pose_2
+    # H_1_2 = pose_1 @ np.linalg.inv(pose_2)
+    H_2_1 = np.linalg.inv(pose_2) @ pose_1
+    # H_2_1 = pose_1 @ np.linalg.inv(pose_2)
+    # H_2_1 = np.linalg(pose_2) @ np.linalg.inv(pose_1)
+    # R_1_0 = pose_1[:3, :3]
+    # t_1_0 = pose_1[:3, 3].reshape(3, 1)
+    # R_2_0 = pose_2[:3, :3]
+    # t_2_0 = pose_2[:3, 3].reshape(3, 1)
+
+    # # H_1_2 = np.eye(4)
+    # # H_1_2[:3, :3] = R_1_0.T @ R_2_0
+    # # H_1_2[:3, 3] = t_2_0 - t_1_0
+    # H_2_1 = np.eye(4)
+    # # H_2_1[:3, :3] =R_2_0.T @ R_1_0
+    # H_2_1[:3, :3] = R_1_0.T @ R_2_0
+    # # H_2_1[:3, 3] = t_2_0 - t_1_0
+    # # H_2_1[:3, 3] = -R_1_0.T @ (R_2_0 @ t_2_0 - t_1_0)
+    # H_2_1[:3, 3] = (-R_1_0.T @ t_2_0 + t_1_0).flatten()
+
+    cloud_tformed = transform_cloud(cloud_frame_1, H_2_1)
     print("Transformed Cloud maxes:", np.max(cloud_tformed.xyz, axis=0))
     print("Transformed Cloud mins:", np.min(cloud_tformed.xyz, axis=0))
     img_tformed, depth_tformed, valid_bbox = cloud_to_img_np(
