@@ -12,20 +12,20 @@ class CornerIdxs:
     def as_np_array(self) -> np.ndarray:
         return np.array([self.upper_left, self.upper_right, self.lower_left, self.lower_right])
 
-    def adjust_coords_given_depth_validity(self, depth_valid_mask: np.ndarray, img_rows: int):
+    def adjust_coords_given_depth_validity(self, depth_valid_mask: np.ndarray, img_cols: int):
         # As there's no guarantee that the corner points have a valid associated depth, we adjust the
         # corner indexes until a valid point is found.
         while depth_valid_mask[self.upper_left] is False:
             self.upper_left += 1
 
         while depth_valid_mask[self.upper_right] is False:
-            self.upper_right += 1
+            self.upper_right += img_cols
 
         while depth_valid_mask[self.lower_left] is False:
-            self.lower_left += img_rows
+            self.lower_left += 1
 
         while depth_valid_mask[self.lower_right] is False:
-            self.lower_right -= img_rows
+            self.lower_right -= img_cols
 
 
 class BoundingBox:
@@ -55,7 +55,7 @@ class BoundingBox:
         u_max_bound = np.min([
             uv_coords[0, corner_idxs.upper_right],
             uv_coords[0, corner_idxs.lower_right],
-            img_width
+            img_width - 1
         ])
         v_min_bound = np.max([
             uv_coords[1, corner_idxs.upper_left],
@@ -65,7 +65,7 @@ class BoundingBox:
         v_max_bound = np.min([
             uv_coords[1, corner_idxs.lower_left],
             uv_coords[1, corner_idxs.lower_right],
-            img_height
+            img_height - 1
         ])
         # yapf: enable
 

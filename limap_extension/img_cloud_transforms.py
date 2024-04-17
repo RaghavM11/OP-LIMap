@@ -1,4 +1,4 @@
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Dict
 import copy
 
 import numpy as np
@@ -6,7 +6,7 @@ import torch
 # import cv2
 
 from limap_extension.constants import CAM_INTRINSIC, H_IMG_TO_CAM
-from limap_extension.bounding_box import BoundingBox
+from limap_extension.bounding_box import BoundingBox, CornerIdxs
 from limap_extension.point_cloud import PointCloud
 
 # TartainAir depth unit is meters.
@@ -15,9 +15,14 @@ METERS_TO_METERS = 1.0
 
 
 def get_uv_coords(img_rows, img_cols):
-    U, V = np.meshgrid(np.arange(img_rows), np.arange(img_cols))
+    # U, V = np.meshgrid(np.arange(img_rows), np.arange(img_cols))
+    V, U = np.meshgrid(np.arange(img_rows), np.arange(img_cols))
+    # U, V = np.meshgrid(np.arange(img_cols), np.arange(img_rows))
+    # V, U = np.meshgrid(np.arange(img_cols), np.arange(img_rows))
+    print("U shape before flatten:", U.shape)
     V = V.T.flatten()
     U = U.T.flatten()
+    print("U max:", np.max(U), "V max:", np.max(V))
     return U, V
 
 
@@ -52,7 +57,8 @@ def uvz_to_xyz(us: np.ndarray,
     xyzs_img = np.stack((xs, ys, zs), axis=1)
     print("xyzs_img shape:", xyzs_img.shape)
     # xyzs_cam = (H_IMG_TO_CAM @ np.hstack([xyzs_img, np.ones((xyzs_img.shape[0], 1))]).T).T[:, :-1]
-    xyzs_cam = tform_coords(H_IMG_TO_CAM, xyzs_img)
+    # xyzs_cam = tform_coords(H_IMG_TO_CAM, xyzs_img)
+    xyzs_cam = xyzs_img
     return xyzs_cam
 
 
@@ -61,7 +67,7 @@ def xyz_to_uvz(
         is_rounding_to_int: bool = False,
         intrinsic: np.ndarray = CAM_INTRINSIC,
         depth_units_to_tracked_units: float = METERS_TO_METERS) -> Tuple[np.ndarray, np.ndarray]:
-    xyz = tform_coords(np.linalg.inv(H_IMG_TO_CAM), xyz)
+    # xyz = tform_coords(np.linalg.inv(H_IMG_TO_CAM), xyz)
     fx = intrinsic[0, 0]
     fy = intrinsic[1, 1]
 
@@ -89,10 +95,11 @@ def xyz_to_uvz(
     return us, vs, zs
 
 
-def imgs_to_clouds_np(rgb_img: np.ndarray,
-                      depth_img: np.ndarray,
-                      intrinsic: np.ndarray,
-                      depth_units_to_tracked_units: float = METERS_TO_METERS) -> PointCloud:
+def imgs_to_clouds_np(
+        rgb_img: np.ndarray,
+        depth_img: np.ndarray,
+        intrinsic: np.ndarray,
+        depth_units_to_tracked_units: float = METERS_TO_METERS) -> Tuple[PointCloud, CornerIdxs]:
     """Converts RGB/D images to point clouds represented by XYZ and RGB arrays
 
     This has a lot of commented code that can be used to filter out points given a 2D (segmentation)
@@ -109,11 +116,49 @@ def imgs_to_clouds_np(rgb_img: np.ndarray,
 
     U, V = get_uv_coords(depth_img.shape[0], depth_img.shape[1])
 
+    print("U[:10]:", U[:10])
+    print("V[:10]:", V[:10])
+
     # Now we get the coordinates of the corners. This helps down the line to crop the view to only
     # the parts of the image that are visible in the other image.
     # Due to numpy flattening in row-major convention, corner coordinates are:
     # 0, img_rows - 1, img_rows * img_cols, img_rows * img_cols + img_cols
-    corner_idxs = [0, depth_img.shape[1] - 1, -depth_img.shape[1], -1]
+    # corner_idxs = {
+    #     "upper_left": 0,
+    #     # "upper_right": -depth_img.shape[1],
+    #     # "lower_left": depth_img.shape[1] - 1,
+    #     "upper_right": depth_img.shape[1] - 1,
+    #     "lower_left": -depth_img.shape[1],
+    #     "lower_right": -1
+    # }
+    # corner_idxs = CornerIdxs(0, -depth_img.shape[0], depth_img.shape[0] - 1, -1)
+    # corner_idxs = CornerIdxs(0, depth_img.shape[0] - 1, -depth_img.shape[0], -1)
+    corner_idxs = CornerIdxs(0, depth_img.shape[1] - 1, -depth_img.shape[1], -1)
+    # corner_idxs = [0, -depth_img.shape[1], depth_img.shape[1] - 1, -1]
+    # corner_idxs = [0, depth_img.shape[1] - 1, -depth_img.shape[1], -1]
+
+    print("U[corner_idxs.upper_left]", U[corner_idxs.upper_left])
+    print("V[corner_idxs.upper_left]", V[corner_idxs.upper_left])
+    print("U[corner_idxs.upper_right]", U[corner_idxs.upper_right])
+    print("V[corner_idxs.upper_right]", V[corner_idxs.upper_right])
+    print("U[corner_idxs.lower_left]", U[corner_idxs.lower_left])
+    print("V[corner_idxs.lower_left]", V[corner_idxs.lower_left])
+    print("U[corner_idxs.lower_right]", U[corner_idxs.lower_right])
+    print("V[corner_idxs.lower_right]", V[corner_idxs.lower_right])
+
+    # Extremely heavy handed but I want to be sure I've got this right.
+    assert U[corner_idxs.upper_left] == 0
+    assert V[corner_idxs.upper_left] == 0
+    assert U[corner_idxs.upper_right] == depth_img.shape[1] - 1
+    assert V[corner_idxs.upper_right] == 0
+    assert U[corner_idxs.lower_left] == 0
+    assert V[corner_idxs.lower_left] == depth_img.shape[0] - 1
+    assert U[corner_idxs.lower_right] == depth_img.shape[1] - 1
+    assert V[corner_idxs.lower_right] == depth_img.shape[0] - 1
+    # print("Upper left:", U[corner_idxs[0]], V[corner_idxs[0]])
+    # print("Upper right:", U[corner_idxs[1]], V[corner_idxs[1]])
+    # print("Lower left:", U[corner_idxs[2]], V[corner_idxs[2]])
+    # print("Lower right:", U[corner_idxs[3]], V[corner_idxs[3]])
 
     depth_flat = depth_img.flatten()
 
@@ -142,17 +187,9 @@ def imgs_to_clouds_np(rgb_img: np.ndarray,
     rgb_cloud_unfiltered = rgb_cloud_raw[:, where_depth_valid]
     # rgb_cloud_filtered = rgb_cloud_raw[:, where_keep_points]
 
-    # As there's no guarantee that the corner points have a valid associated depth, we adjust the
-    # corner indexes until a valid point is found.
-    coord_0 = corner_idxs[0]
-    while where_depth_valid[coord_0] is False:
-        coord_0 += 1
-    corner_idxs[0] = coord_0
+    corner_idxs.adjust_coords_given_depth_validity(where_depth_valid, depth_img.shape[0])
 
-    for i, coord_i in enumerate(corner_idxs[1:]):
-        while where_depth_valid[coord_i] is False:
-            coord_i -= 1
-        corner_idxs[i + 1] = coord_i
+    print("Corner indexes:", corner_idxs.as_np_array())
 
     return PointCloud(xyz_cloud_unfiltered.T, rgb_cloud_unfiltered.T), corner_idxs
 
@@ -162,7 +199,7 @@ def cloud_to_img_np(cloud: PointCloud,
                     img_width: int = 640,
                     img_height: int = 480,
                     depth_units_to_tracked_units: float = METERS_TO_METERS,
-                    corner_idxs: Optional[List[int]] = None,
+                    corner_idxs: Optional[CornerIdxs] = None,
                     interpolation_method: Optional[str] = None) -> Tuple[np.ndarray, BoundingBox]:
     """Turns cloud coordinates to UV (image) coordinates
 
@@ -198,10 +235,10 @@ def cloud_to_img_np(cloud: PointCloud,
     else:
         # If corner indexes are provided, we can use them to get a tighter bounding box on what
         # parts of image 1 are visible in image 2. This should help the flow out.
-        valid_bbox = BoundingBox(0, img_height, 0, img_width)
+        valid_bbox = BoundingBox(0, img_width - 1, 0, img_height - 1)
 
-    where_u_valid = np.logical_and(uv_coords[0] >= 0, uv_coords[0] < img_height)
-    where_v_valid = np.logical_and(uv_coords[1] >= 0, uv_coords[1] < img_width)
+    where_u_valid = np.logical_and(us >= 0, us < img_width)
+    where_v_valid = np.logical_and(vs >= 0, vs < img_height)
     where_uv_valid = np.logical_and(where_u_valid, where_v_valid)
 
     uv_coords = uv_coords[:, where_uv_valid]
@@ -212,10 +249,10 @@ def cloud_to_img_np(cloud: PointCloud,
     # has a function for this)
     if interpolation_method is None:
         img = np.zeros((img_height, img_width, 3), dtype=np.uint8)
-        img[uv_coords[0], uv_coords[1], :] = rgb_valid
+        img[uv_coords[1], uv_coords[0], :] = rgb_valid
 
         depth_img = np.zeros((img_height, img_width), dtype=np.float32)
-        depth_img[uv_coords[0], uv_coords[1]] = zs
+        depth_img[uv_coords[1], uv_coords[0]] = zs
     elif interpolation_method == "clough_tocher":
         raise NotImplementedError("Clough-Tocher interpolation not yet implemented.")
         from scipy.interpolate import CloughTocher2DInterpolator
@@ -276,8 +313,13 @@ def reproject_img(rgb_1: np.ndarray,
                   interpolation_method: Optional[str] = None) -> Tuple[np.ndarray, BoundingBox]:
     """Reprojects an image from frame 1 to frame 2 using the poses of the two frames."""
     cloud_frame_1, corner_idxs = imgs_to_clouds_np(rgb_1, depth_1, CAM_INTRINSIC)
-    H_1_2 = np.linalg.inv(pose_1) @ pose_2
+    print("Cloud frame 1 maxes:", np.max(cloud_frame_1.xyz, axis=0))
+    print("Cloud frame 1 mins:", np.min(cloud_frame_1.xyz, axis=0))
+    # TODO: Make this use the formula instead of inverses!
+    H_1_2 = np.linalg.inv(np.linalg.inv(pose_1) @ pose_2)
     cloud_tformed = transform_cloud(cloud_frame_1, H_1_2)
+    print("Transformed Cloud maxes:", np.max(cloud_tformed.xyz, axis=0))
+    print("Transformed Cloud mins:", np.min(cloud_tformed.xyz, axis=0))
     img_tformed, depth_tformed, valid_bbox = cloud_to_img_np(
         cloud_tformed,
         CAM_INTRINSIC,
