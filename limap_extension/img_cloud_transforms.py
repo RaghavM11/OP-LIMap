@@ -254,13 +254,15 @@ def imgs_to_clouds_np(
     return PointCloud(xyz_cloud_unfiltered.T, rgb_cloud_unfiltered.T), corner_idxs
 
 
-def cloud_to_img_np(cloud: PointCloud,
-                    intrinsic: np.ndarray,
-                    img_width: int = 640,
-                    img_height: int = 480,
-                    depth_units_to_tracked_units: float = METERS_TO_METERS,
-                    corner_idxs: Optional[CornerIdxs] = None,
-                    interpolation_method: Optional[str] = None) -> Tuple[np.ndarray, BoundingBox]:
+def cloud_to_img_np(
+    cloud: PointCloud,
+    intrinsic: np.ndarray,
+    img_width: int = 640,
+    img_height: int = 480,
+    depth_units_to_tracked_units: float = METERS_TO_METERS,
+    corner_idxs: Optional[CornerIdxs] = None,
+    interpolation_method: Optional[str] = None
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, BoundingBox]:
     """Turns cloud coordinates to UV (image) coordinates
 
     TODO: Do we need to do some sort of bilinear interpolation here to correct for camera
@@ -327,6 +329,9 @@ def cloud_to_img_np(cloud: PointCloud,
 
         depth_img = np.zeros((img_height, img_width), dtype=np.float32)
         depth_img[vs_valid, us_valid] = zs
+
+        mask_valid_projection = np.zeros((img_height, img_width), dtype=bool)
+        mask_valid_projection[vs_valid, us_valid] = True
     elif interpolation_method == "clough_tocher":
         raise NotImplementedError("Clough-Tocher interpolation not yet implemented.")
         from scipy.interpolate import CloughTocher2DInterpolator
@@ -365,7 +370,7 @@ def cloud_to_img_np(cloud: PointCloud,
     #     rgb = cloud.rgb[i, :]
     #     img[u, v, :] = rgb
 
-    return img, depth_img, valid_bbox
+    return img, depth_img, mask_valid_projection, valid_bbox
 
 
 def transform_cloud(cloud: PointCloud, H: np.ndarray) -> PointCloud:
@@ -380,11 +385,13 @@ def transform_cloud(cloud: PointCloud, H: np.ndarray) -> PointCloud:
     return cloud_tformed
 
 
-def reproject_img(rgb_1: np.ndarray,
-                  depth_1: np.ndarray,
-                  pose_1_world_ned: np.ndarray,
-                  pose_2_world_ned: np.ndarray,
-                  interpolation_method: Optional[str] = None) -> Tuple[np.ndarray, BoundingBox]:
+def reproject_img(
+    rgb_1: np.ndarray,
+    depth_1: np.ndarray,
+    pose_1_world_ned: np.ndarray,
+    pose_2_world_ned: np.ndarray,
+    interpolation_method: Optional[str] = None
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, BoundingBox]:
     """Reprojects an image from frame 1 to frame 2 using the poses of the two frames."""
     cloud_frame_1, corner_idxs = imgs_to_clouds_np(rgb_1, depth_1, CAM_INTRINSIC)
     print("Cloud frame 1 maxes:", np.max(cloud_frame_1.xyz, axis=0))
@@ -397,12 +404,12 @@ def reproject_img(rgb_1: np.ndarray,
     cloud_tformed = transform_cloud(cloud_frame_1, T_cam_1_to_cam_2)
     print("Transformed Cloud maxes:", np.max(cloud_tformed.xyz, axis=0))
     print("Transformed Cloud mins:", np.min(cloud_tformed.xyz, axis=0))
-    img_tformed, depth_tformed, valid_bbox = cloud_to_img_np(
+    img_tformed, depth_tformed, mask_valid_projection, valid_bbox = cloud_to_img_np(
         cloud_tformed,
         CAM_INTRINSIC,
         corner_idxs=corner_idxs,
         interpolation_method=interpolation_method)
-    return img_tformed, depth_tformed, valid_bbox
+    return img_tformed, depth_tformed, mask_valid_projection, valid_bbox
 
 
 def imgs_to_clouds_torch(
