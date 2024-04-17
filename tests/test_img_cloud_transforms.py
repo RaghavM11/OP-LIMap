@@ -3,12 +3,13 @@ from pathlib import Path
 
 import numpy as np
 
-REPO_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(REPO_ROOT.as_posix())
 from limap_extension.img_cloud_transforms import (imgs_to_clouds_np, cloud_to_img_np, reproject_img,
-                                                  xyz_to_uvz, uvz_to_xyz, get_uv_coords)
+                                                  xyz_cam_to_uvz_ned, uvz_ned_to_xyz_cam,
+                                                  get_uv_coords)
 from limap_extension.constants import CAM_INTRINSIC
-from .test_utils import read_test_data
+from tests.test_utils import read_test_data
 
 
 def test_proj_reproj_same_img():
@@ -83,9 +84,23 @@ def test_xyz_uvz_conversion():
     vs = vs.flatten()
     zs = np.ones_like(us)
 
-    xyz = uvz_to_xyz(us, vs, zs)
-    us_out, vs_out, zs_out = xyz_to_uvz(xyz)
+    xyz = uvz_ned_to_xyz_cam(us, vs, zs)
+    us_out, vs_out, zs_out = xyz_cam_to_uvz_ned(xyz)
 
     assert np.allclose(us, us_out)
     assert np.allclose(vs, vs_out)
     assert np.allclose(zs, zs_out)
+
+
+if __name__ == "__main__":
+    td_1, _ = read_test_data()
+
+    cloud, corner_idxs = imgs_to_clouds_np(td_1.rgb, td_1.depth, CAM_INTRINSIC)
+    img, depth_img, bbox = cloud_to_img_np(cloud, CAM_INTRINSIC)
+
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(1, 2, figsize=[10, 10])
+    ax[0].imshow(img)
+    ax[1].imshow(td_1.rgb)
+    # fig.show()
+    fig.savefig("test_img_cloud_transforms.png")

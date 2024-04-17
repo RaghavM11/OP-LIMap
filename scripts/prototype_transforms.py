@@ -12,9 +12,8 @@ REPO_DIR = Path(__file__).resolve().parents[1]
 sys.path.append(REPO_DIR.as_posix())
 
 from limap_extension.optical_flow import motion_segmentation, Args, OpticalFlow
-from limap_extension.img_cloud_transforms import (reproject_img, uvz_to_xyz, xyz_to_uvz,
-                                                  index_img_with_uv_coords, get_uv_coords,
-                                                  imgs_to_clouds_np, tform_coords,
+from limap_extension.img_cloud_transforms import (reproject_img, index_img_with_uv_coords,
+                                                  get_uv_coords, imgs_to_clouds_np, tform_coords,
                                                   cam2ned_single_pose, ned2cam_single_pose)
 from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 from limap_extension.bounding_box import BoundingBox
