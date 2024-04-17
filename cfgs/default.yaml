@@ -24,9 +24,12 @@ undistortion_output_dir: "undistorted_images"
 # Extension dataset specification
 extension_dataset:
     # Based on the dataset path, we'll output to OUTPUT_ROOT/path_relative_to_dataset_directory
-    dataset_path: null
-    scene_id: null
-    cam_id: left  # Can be "left", "right", or "both"
+    path_to_repo: /home/dcolli23/code/LIMap-Extension
+    # Example: /home/dcolli23/code/
+    dataset_path: datasets/ocean/Hard/P006
+    # scene_id: null
+    # cam_id: left  # Can be "left", "right", or "both"
+    pruning_dynamic_objects: true
 
 ##############################
 # sfm config
