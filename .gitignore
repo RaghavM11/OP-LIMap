@@ -163,5 +163,5 @@ cython_debug/
 Pipfile
 Pipfile.lock
 
-# Ignore all data files
+# Ignoring the full dataset directory now that we're not using LFS.
 datasets/
