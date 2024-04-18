@@ -84,5 +84,20 @@ class BoundingBox:
             raise ValueError("Image must be 2D or 3D")
         return cropped
 
+    def uncrop_img(self, img: np.ndarray, img_height_orig: int, img_width_orig: int, fill_value):
+        if img.ndim == 2:
+            uncropped = np.ones((img_height_orig, img_width_orig), dtype=img.dtype) * fill_value
+            uncropped[self.v_min:self.v_max, self.u_min:self.u_max] = img
+        elif img.ndim == 3:
+            if img.shape[0] == 3:
+                raise ValueError("Expected image to be in HWC format, got CHW instead.")
+            uncropped = np.ones(
+                (img_height_orig, img_width_orig, img.shape[2]), dtype=img.dtype) * fill_value
+            uncropped[self.v_min:self.v_max, self.u_min:self.u_max, :] = img
+        else:
+            raise ValueError("Image must be 2D or 3D")
+
+        return uncropped
+
     def __str__(self):
         return f"BBox: u_min={self.u_min}, u_max={self.u_max}, v_min={self.v_min}, v_max={self.v_max}"
