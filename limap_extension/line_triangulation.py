@@ -3,7 +3,7 @@ import os
 import numpy as np
 from tqdm import tqdm
 from pathlib import Path
-
+import cv2 
 import limap.base as _base
 import limap.merging as _mrg
 import limap.triangulation as _tri
@@ -139,18 +139,47 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         segment = all_2d_segs[i]
         # find the dynamic object pixels
         dynamic_object_pixels = np.where(mask == 1)
-        # remove the dynamic object pixels from the 2d segments
         for pixel in dynamic_object_pixels:
             x, y = pixel
-            # Note: the condition below may need to be changed because I do not know if the in
-            # operation works on arays or not
-            # .     In case it throws an error  just check individually
-            # Note: segment is a Nx4/5 array where N is the number of segments and each segment is a
-            # 4/5 tuple of x1, y1, x2, y2, [score]
-            # check if the location is in the segments already if so, remove the entire segment
-            if (x, y) in segment:
-                segment.remove((x, y))
+            x1 = segment[:, 0]
+            y1 = segment[:, 1]
+            x2 = segment[:, 2]
+            y2 = segment[:, 3]
+
+            match_x1 = np.where(x1 == x)
+            match_x2 = np.where(x2 == x)
+            match_y1 = np.where(y1 == y)
+            match_y2 = np.where(y2 == y)
+
+            match1 = np.intersect1d(match_x1, match_y1)
+            match2 = np.intersect1d(match_x2, match_y2)
+
+            matching_segments = np.intersect1d(match1, match2)
+            # remove the matching segments
+            for idx in matching_segments:
+                segment = np.delete(segment, idx, axis=0)
+        
         all_2d_segs[i] = segment
+        # remove the dynamic object pixels from the 2d segments
+        # for pixel in dynamic_object_pixels:
+        #     x, y = pixel
+        #     # Note: the condition below may need to be changed because I do not know if the in
+        #     # operation works on arays or not
+        #     # .     In case it throws an error  just check individually
+        #     # Note: segment is a Nx4/5 array where N is the number of segments and each segment is a
+        #     # 4/5 tuple of x1, y1, x2, y2, [score]
+        #     # check if the location is in the segments already if so, remove the entire segment
+        #     x1 = segment[:, 0]
+        #     y1 = segment[:, 1]
+        #     x2 = segment[:, 2]
+        #     y2 = segment[:, 3]
+        #     # check if the pixel is in the segment
+        #     # if it is, remove the segments 
+        #     # remove the matching segments
+        #     for idx in matching_segments:
+        #         segment = np.delete(segment, idx, axis=0)
+            
+        
 
     # All 2d segs is likely an iterable where each item somehow indicates a line in the image
     # (likely (pt_1, pt_2)).
