@@ -2,61 +2,50 @@
 ##############################
 # global config
 cfg_type: "triangulation"
-weight_path: "~/.limap/models"
+weight_path: "~/.limap/models" 
 load_meta: False
-load_det: False
+load_det: False 
 load_match: False
-load_undistort: False
+load_undistort: False 
 use_tmp: False
 n_visible_views: 4
-n_neighbors: 20
+n_neighbors: 20 
 use_cuda: True
 visualize: True
 max_image_dim: 1600
 skip_exists: False
-output_dir: null
+output_dir: null 
 output_folder: "finaltracks"
 load_dir: null
 n_jobs: -1 # for undistortion
 undistortion_output_dir: "undistorted_images"
 
 ##############################
-# Extension dataset specification
-extension_dataset:
-    # Based on the dataset path, we'll output to OUTPUT_ROOT/path_relative_to_dataset_directory
-    path_to_repo: /home/dcolli23/code/LIMap-Extension
-    # Example: /home/dcolli23/code/
-    dataset_path: datasets/ocean/Hard/P006
-    # scene_id: null
-    # cam_id: left  # Can be "left", "right", or "both"
-    pruning_dynamic_objects: true
-
-##############################
 # sfm config
-# sfm:
-#     colmap_output_path: "colmap_outputs"
-#     reuse: False
-#     min_triangulation_angle: 1.0
-#     neighbor_type: "dice" # ["overlap", "iou", "dice"]
-#     ranges:
-#         range_robust: [0.05, 0.95]
-#         k_stretch: 1.25
-#     hloc:
-#         descriptor: "superpoint_aachen"
-#         matcher: "NN-superpoint"
+sfm: 
+    colmap_output_path: "colmap_outputs"
+    reuse: False
+    min_triangulation_angle: 1.0
+    neighbor_type: "dice" # ["overlap", "iou", "dice"]
+    ranges:
+        range_robust: [0.05, 0.95]
+        k_stretch: 1.25
+    hloc:
+        descriptor: "superpoint_aachen"
+        matcher: "NN-superpoint"
 
 ##############################
 # line detection and matching config
 line2d:
     max_num_2d_segs: 3000
-    do_merge_lines: False
+    do_merge_lines: False 
     visualize: True
     save_l3dpp: False
     compute_descinfo: False
-    detector:
+    detector: 
         method: "deeplsd" # ["lsd", "sold2", "hawpv3", "tp_lsd", "deeplsd"]
         skip_exists: False
-    extractor:
+    extractor: 
         method: "wireframe" # ["sold2", "lbd", "l2d2", "linetr", "superpoint_endpoints", "wireframe"]
         skip_exists: False
     matcher:
@@ -121,7 +110,7 @@ triangulation:
         th_sv_num_supports: 3
         th_overlap: 0.5
         th_overlap_num_supports: 3
-    use_vp: False
+    use_vp: False 
     vpdet_config:
         method: "jlinkage"
         n_jobs: 8
@@ -133,7 +122,7 @@ triangulation:
         colmap_folder: null
         reuse_sfminfos_colmap: true
         use_triangulated_points: true
-        use_neighbors: true
+        use_neighbors: true 
     disable_many_points_triangulation: false
     disable_one_point_triangulation: false
     disable_algebraic_triangulation: false
@@ -151,9 +140,9 @@ refinement:
     num_outliers_aggregator: 2
     use_geometric: True
     geometric_alpha: 10.0
-    use_vp: False
+    use_vp: False 
     vp_multiplier: 0.1
-    use_heatmap: False
+    use_heatmap: False 
     use_feature: False
 
 ##############################

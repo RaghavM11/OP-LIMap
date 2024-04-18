@@ -117,7 +117,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     neighbors, ranges = read_calc_fake_sfm_data()
 
     ##########################################################
-    # [B] get 2D line segments for each image
+    # [B] get 2D line segments for each image and prune them
     ##########################################################
     compute_descinfo = (not cfg["triangulation"]["use_exhaustive_matcher"])
     compute_descinfo = (compute_descinfo and (not cfg["load_match"]) and
@@ -127,6 +127,44 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
                                                             compute_descinfo=compute_descinfo)
 
     print("\n\nINSERT LINE PRUNING HERE\n\n")
+    # read the masks in from the config file
+    # assuming that all the masks from frames 1 - N are stored in masks as a NxHxWx1 matrix
+    masks = cfg["masks"]
+    # N is the number of frames
+    N = 10  # dummy need to change
+    for i in range(1, N):
+        mask = masks[i]
+        # fing dynamic object pixels in the mask and remove them from the 2d segments
+        # dynamic object pixels are denotes as 1's in the mask
+        segment = all_2d_segs[i]
+        # find the dynamic object pixels
+        dynamic_object_pixels = np.where(mask == 1)
+        # remove the dynamic object pixels from the 2d segments
+        for pixel in dynamic_object_pixels:
+            x, y = pixel
+            # Note: the condition below may need to be changed because I do not know if the in
+            # operation works on arays or not
+            # .     In case it throws an error  just check individually
+            # Note: segment is a Nx4/5 array where N is the number of segments and each segment is a
+            # 4/5 tuple of x1, y1, x2, y2, [score]
+            # check if the location is in the segments already if so, remove the entire segment
+            if (x, y) in segment:
+                segment.remove((x, y))
+        all_2d_segs[i] = segment
+
+    # All 2d segs is likely an iterable where each item somehow indicates a line in the image
+    # (likely (pt_1, pt_2)).
+    # idxs_to_keep = []
+    # for i, line in enumerate(all_2d_segs):
+    #     # Check if the line intersects or overlaps with any area of the mask that is associated with
+    #     # dynamic objects.
+    #     is_line_associated_with_dynamic_object = do_your_method(line, masks)
+
+    #     if not is_line_associated_with_dynamic_object:
+    #         idxs_to_keep.append(i)
+
+    # Delete the lines that are associated with dynamic objects
+    # for idx in idxs_to_keep:
 
     ##########################################################
     # [C] get line matches
@@ -235,6 +273,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
                                              config=cfg,
                                              imagecols=imagecols,
                                              all_2d_segs=all_2d_segs)
+    # if is_visualizing:
     VisTrack = limapvis.Open3DTrackVisualizer(linetracks)
     VisTrack.report()
     limapio.save_obj(
