@@ -267,7 +267,7 @@ def spawn_job(job: Job):
             # print("targets: ", targets)
 
             yield {
-                "name": f"process_mask_{f_t}",
+                "name": f"process_mask_job_{job.name}_{f_t}",
                 "actions": [(process_single_frame_pair, [job, idx_t, poses])],
                 "file_dep": [job_path],
                 "targets": [targets],
