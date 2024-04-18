@@ -1,7 +1,5 @@
 from pathlib import Path
 import sys
-# import pickle as pkl
-from typing import Dict
 
 import numpy as np
 from PIL import Image
@@ -20,25 +18,25 @@ from limap_extension.projection_based_flow import projection_based_motion_segmen
 # TODO: Put all of this stuff into config files that are read in by doit.
 DATASET_DIR = REPO_DIR / "datasets"
 JOB_CFG_PATH = ROOT_DIR / "job.yml"
-
-# # SCENARIO = "ocean"
-# SCENARIO = "carwelding"
-# DIFFICULTY = "Hard"
-# # TRIAL = "P006"
-# TRIAL = "P001"
+CACHED_CFG_PATH = ROOT_DIR / "cached_job.yml"
 
 
 class Config:
 
-    def __init__(self):
-        with JOB_CFG_PATH.open('r') as f:
+    def __init__(self, job_cfg_path: Path = JOB_CFG_PATH):
+        with job_cfg_path.open('r') as f:
             job_params = yaml.safe_load(f)
-        self.scenario = job_params["scenario"]
-        self.difficulty = job_params["difficulty"]
-        self.trial = job_params["trial"]
-        self.trial_path = DATASET_DIR / self.scenario / self.difficulty / self.trial
+        self.scenario: str = job_params["scenario"]
+        self.difficulty: str = job_params["difficulty"]
+        self.trial: str = job_params["trial"]
+        self.trial_path: Path = DATASET_DIR / self.scenario / self.difficulty / self.trial
         # self.img_direction = ImageDirection[job_params["img_direction"]]
-        self.img_direction = self._discern_img_direction(job_params["img_direction"])
+        self.img_direction: ImageDirection = self._discern_img_direction(
+            job_params["img_direction"])
+
+        # TODO: Make this an enum in the projection based flow stuff
+        self.method: str = job_params["method"]
+        self.using_ground_truth_flow: bool = job_params["using_ground_truth_flow"]
 
     def _discern_img_direction(self, img_direction_str: str) -> ImageDirection:
         if img_direction_str == "left":
@@ -49,39 +47,49 @@ class Config:
             raise ValueError(
                 f"Invalid image direction: {img_direction_str}, expected 'left' or 'right'")
 
+    def cache_cfg(self):
+        try:
+            cfg_prev = Config(CACHED_CFG_PATH)
+        except (FileNotFoundError, KeyError):
+            # Key error is for when the new job config contains a new parameter the old one didn't.
+            cfg_prev = None
 
-# def read_job_params() -> Dict:
-#     with JOB_CFG_PATH.open('r') as f:
-#         job_params = yaml.safe_load(f)
-#     return job_params
+        if not (cfg_prev == self):
+            # Copy the current job config to the previous job config.
+            with CACHED_CFG_PATH.open('w') as f:
+                yaml.dump(
+                    {
+                        "scenario": self.scenario,
+                        "difficulty": self.difficulty,
+                        "trial": self.trial,
+                        "img_direction": self.img_direction.value,
+                        "method": self.method,
+                        "using_ground_truth_flow": self.using_ground_truth_flow
+                    }, f)
 
-# def trial_path_from_cfg(cfg: Dict) -> Path:
-#     scenario = cfg["scenario"]
-#     difficulty = cfg["difficulty"]
-#     trial = cfg["trial"]
-#     return DATASET_DIR / scenario / difficulty / trial
+    def __eq__(self, other):
+        if not isinstance(other, Config):
+            return False
+        return all(self.scenario == other.scenario, self.difficulty == other.difficulty,
+                   self.trial == other.trial, self.img_direction == other.img_direction,
+                   self.method == other.method)
+
+
+def task_cache_cfg():
+
+    def cache_cfg():
+        cfg = Config()
+        cfg.cache_cfg()
+
+    return {
+        "actions": [(cache_cfg, [])],
+        "file_dep": [JOB_CFG_PATH],
+        "targets": [CACHED_CFG_PATH],
+    }
 
 
 def idx_target_file_from_cfg(cfg: Config) -> Path:
     return ROOT_DIR / f"max_image_idx_{cfg.img_direction}.txt"
-
-
-# TARGET_LIST_RIGHT = ROOT_DIR / "file_list_right.pkl"
-# TARGET_LIST_LEFT = ROOT_DIR / "file_list_left.pkl"
-# TARGET_LIST_LEFT = ROOT_DIR / "max_image_idx_left.txt"
-
-# def task_make_file_list():
-#     """Make a list of all the files in the dataset directory."""
-#     dataset_dir = REPO_ROOT / "datasets"
-#     file_list_path = dataset_dir / "file_list.txt"
-
-#     return {
-#         "actions": [
-#             f"ls -R {dataset_dir} > {file_list_path}"
-#         ],
-#         "file_dep": [REPO_ROOT / "scripts/preprocess_reprojections/dodo.py"],
-#         "targets": [file_list_path],
-#     }
 
 
 def frame_idx_to_str(frame_idx: int) -> str:
@@ -92,26 +100,6 @@ def get_mask_output_path(trial_path: Path, img_direction: ImageDirection, frame_
     f_t = frame_idx_to_str(frame_idx_t)
     out_dir = trial_path / f"dynamic_obj_masks_{img_direction.value}"
     return out_dir / f"{f_t}_{img_direction.value}_dynamic_obj_mask.png"
-
-
-# def targets_from_file_list(direction: ImageDirection):
-#     if direction == ImageDirection.RIGHT:
-#         # file_list_path = TARGET_LIST_RIGHT
-#         raise NotImplementedError(
-#             "Right image direction not implemented due to no ground truth flow.")
-#     elif direction == ImageDirection.LEFT:
-#         file_list_path = TARGET_LIST_LEFT
-
-#     with open(file_list_path, 'rb') as f:
-#         file_list = pkl.load(f)
-
-#     targets = []
-#     for (i, j) in file_list:
-#         i = int(i)
-#         j = int(j)
-#         targets.append(get_mask_output_path(TRIAL_PATH, direction, i, j))
-
-#     return targets
 
 
 def save_mask(mask: np.ndarray, out_path: Path):
@@ -155,97 +143,7 @@ def process_single_frame_pair(trial_path: Path, img_direction: ImageDirection, f
     save_mask(mask, out_path)
 
 
-# def task_generate_file_list_right():
-
-#     def generate_file_list_right():
-#         img_gt_dir = TRIAL_PATH / "image_right"
-#         img_idxs = [int(img_path.stem.split("_")[0]) for img_path in img_gt_dir.iterdir()]
-#         max_idx = max(img_idxs)
-#         # print("max_idx: ", max_idx)
-
-#         # img_name_template = "{idx:06d}_right.png"
-#         frame_idx_template = "{idx:06d}"
-
-#         # poses = read_pose(TRIAL_PATH, ImageDirection.RIGHT)
-#         idxs = list(range(max_idx))
-#         idx_pairs = [(frame_idx_template.format(idx=idxs[i]),
-#                       frame_idx_template.format(idx=idxs[i + 1])) for i in range(max_idx - 1)]
-
-#         # for i in range(max_idx - 1):
-#         #     # process_single_frame_pair(ImageDirection.RIGHT, i, None)
-#         #     # this doesn't do the actual processing, it just defines the tasks.
-#         #     name_i = frame_idx_template.format(idx=i)
-#         #     name_j = frame_idx_template.format(idx=i + 1)
-
-#         #     targets = get_img_bbox_paths(TRIAL_PATH, ImageDirection.RIGHT, i, i + 1)
-
-#         with open(TARGET_LIST_RIGHT, 'wb') as f:
-#             pkl.dump(idx_pairs, f)
-
-#     return {
-#         "actions": [(generate_file_list_right, [])],
-#         "targets": [TARGET_LIST_RIGHT],
-#     }
-
-# def task_process_right():
-#     img_gt_dir = TRIAL_PATH / "image_right"
-#     img_idxs = [int(img_path.stem.split("_")[0]) for img_path in img_gt_dir.iterdir()]
-#     max_idx = max(img_idxs)
-#     # print("max_idx: ", max_idx)
-
-#     # img_name_template = "{idx:06d}_right.png"
-#     frame_idx_template = "{idx:06d}"
-
-#     poses = read_pose(TRIAL_PATH, ImageDirection.RIGHT)
-
-#     for i in range(max_idx - 1):
-#         # process_single_frame_pair(ImageDirection.RIGHT, i, None)
-#         # this doesn't do the actual processing, it just defines the tasks.
-#         name_i = frame_idx_template.format(idx=i)
-#         name_j = frame_idx_template.format(idx=i + 1)
-
-#         targets = get_img_bbox_paths(TRIAL_PATH, ImageDirection.RIGHT, i, i + 1)
-#         # print("Targets:", targets)
-
-#         yield {
-#             "basename": f"process_right_{name_i}_{name_j}",
-#             "actions": [(process_single_frame_pair, [ImageDirection.RIGHT, i, poses])],
-#             "file_dep": [TARGET_LIST_RIGHT],
-#             "targets": targets,
-#         }
-
-# def task_generate_idx_file():
-
-#     cfg = read_job_params()
-#     target_file = idx_target_file_from_cfg(cfg)
-
-#     def generate_file_idx_left():
-#         trial_path = trial_path_from_cfg(cfg)
-#         img_gt_dir = trial_path / "image_left"
-#         img_idxs = [int(img_path.stem.split("_")[0]) for img_path in img_gt_dir.iterdir()]
-#         max_idx = max(img_idxs)
-
-#         target_file.write_text(f"{max_idx}\n")
-
-#     return {
-#         "actions": [(generate_file_idx_left, [])],
-#         "targets": [target_file],
-#         "file_dep": [JOB_CFG_PATH]
-#     }
-
-
 def task_process_masks():
-
-    # def get_max_idx(idx_file: Path):
-    #     with idx_file.open('r'):
-    #         max_idx = int(idx_file.readline())
-    #     return max_idx
-
-    # yield {
-    #     "basename": "read_max_idx_left",
-    #     "actions": [],
-    #     "file_dep": [TARGET_LIST_LEFT],
-    # }
 
     cfg = Config()
     max_idx = get_max_img_idx(cfg.trial_path, cfg.img_direction)
@@ -268,7 +166,7 @@ def task_process_masks():
                 f"process_mask_{f_t}",
                 "actions":
                 [(process_single_frame_pair, [cfg.trial_path, cfg.img_direction, idx_t, poses])],
-                "file_dep": [JOB_CFG_PATH],
+                "file_dep": [CACHED_CFG_PATH],
                 "targets": [targets],
             }
 
