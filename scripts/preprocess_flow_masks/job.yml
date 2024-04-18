@@ -1,4 +1,8 @@
 scenario: carwelding
 difficulty: Hard
 trial: P001
+# Options are 'left' and 'right'
 img_direction: left
+# Options are 'flow_xyz'
+method: flow_xyz
+using_ground_truth_flow: False
