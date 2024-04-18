@@ -25,7 +25,7 @@ python limap/visualize_3d_lines.py --input_dir outputs/quickstart_triangulation/
                              # add the camera frustums with "--imagecols outputs/quickstart_triangulation/imagecols.npy"
 ```
 
-## For Hybrid Loaclization of Poinys and Lines using NN detectors
+## For Hybrid Loaclization of Points and Lines using NN detectors
 
 ```
 python limap/runners/tests/localization.py --data limap/runners/tests/data/localization/localization_test_data_stairs_1.npy
