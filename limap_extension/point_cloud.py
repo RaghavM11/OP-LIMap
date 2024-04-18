@@ -1,32 +1,16 @@
-# import numpy as np
-
-# class PointCloud:
-
-#     def __init__(self, xyz: np.ndarray, rgb: np.ndarray):
-#         self.xyz: np.ndarray = self._verify_shape(xyz)
-#         if rgb.dtype != np.uint8:
-#             raise ValueError("RGB array must be of type uint8")
-#         self.rgb: np.ndarray = self._verify_shape(rgb)
-
-#     def _verify_shape(self, arr: np.ndarray) -> np.ndarray:
-#         if not arr.ndim == 2:
-#             raise ValueError("Array must be 2D")
-#         if not arr.shape[1] == 3:
-#             raise ValueError(f"Array convention is [N_points, 3], got {arr.shape} instead.")
-#         return arr
-
-from typing import Union, Tuple, Optional
+from typing import Union, Optional
 
 import torch
 import numpy as np
-import open3d as o3d
-import plotly.graph_objects as go
 
-# from .plotly_util import POINT_CLOUD_MARKER_SIZE, POINT_CLOUD_OPACITY, DEFAULT_POINT_CLOUD_COLOR
+try:
+    import open3d as o3d
+    OPEN3D_FOUND = True
+except ImportError:
+    OPEN3D_FOUND = False
 
 from abc import ABC, abstractmethod
-from typing import List, TypeVar, Generic, Optional, Iterable, Iterator
-from collections import UserList, UserDict
+from typing import Optional
 
 import torch
 
@@ -172,6 +156,9 @@ class PointCloud(BaseTypeMixin):
 
     def downsample(self, voxel_size=0.02):
         """Performs voxel grid downsampling"""
+        if not OPEN3D_FOUND:
+            raise ImportError("Open3D not found. Please install Open3D to use this method.")
+
         is_torch_orig = self.is_torch
         if is_torch_orig:
             dtype_orig = self.xyz.dtype
@@ -217,44 +204,10 @@ class PointCloud(BaseTypeMixin):
 
         self.xyz = (ext[:3, :3] @ self.xyz.T).T + ext[:3, 3].reshape(1, 3)
 
-    # def to_pointcloud2_msg(self, rviz_frame_id: str, timestamp: 'rospy.Time'):
-    #     # Lazy imports to avoid ROS dependency.
-    #     import sensor_msgs.point_cloud2 as pcl2
-    #     from sensor_msgs.msg import PointField
-    #     import std_msgs.msg
-
-    #     pc_copy = self.copy()
-    #     pc_copy.to_numpy()
-    #     pc_copy.normalize_rgb()
-
-    #     header = std_msgs.msg.Header()
-    #     header.stamp = timestamp
-    #     header.frame_id = rviz_frame_id
-
-    #     fields = [
-    #         PointField('x', 0, PointField.FLOAT32, 1),
-    #         PointField('y', 4, PointField.FLOAT32, 1),
-    #         PointField('z', 8, PointField.FLOAT32, 1)
-    #     ]
-    #     pts = pc_copy.xyz.astype(np.float32)
-
-    #     if self.has_rgb:
-    #         fields.append(PointField('r', 12, PointField.FLOAT32, 1))
-    #         fields.append(PointField('g', 16, PointField.FLOAT32, 1))
-    #         fields.append(PointField('b', 20, PointField.FLOAT32, 1))
-
-    #         pts = np.concatenate((pts, pc_copy.rgb.astype(np.float32)), axis=0)
-    #         assert (pts.shape[0] == 6)
-    #         assert (pts.shape[1] == pc_copy.rgb.shape[1])
-
-    #     # Cloud data is expected to be in [num_points, num_fields] shape so we must transpose.
-    #     pts = pts.T
-
-    #     cloud_msg = pcl2.create_cloud(header, fields, pts)
-
-    #     return cloud_msg
-
     def to_open3d_copy(self):
+        if not OPEN3D_FOUND:
+            raise ImportError("Open3D not found. Please install Open3D to use this method.")
+
         # Convert copies to numpy arrays if tensors
         xyz = self.xyz
         rgb = self.rgb
@@ -277,61 +230,6 @@ class PointCloud(BaseTypeMixin):
     def visualize_open3d(self):
         pcd = self.to_open3d_copy()
         o3d.visualization.draw_geometries([pcd])
-
-    # def form_plotly_scatter3d_kwargs(self,
-    #                                  marker_size: int = POINT_CLOUD_MARKER_SIZE,
-    #                                  trace_name: str = None,
-    #                                  color: str = DEFAULT_POINT_CLOUD_COLOR,
-    #                                  markers_only: bool = True,
-    #                                  opacity: float = POINT_CLOUD_OPACITY):
-    #     """Creates the nested dictionary that can be use to make a plotly Scatter3d object
-
-    #     NOTE: This shouldn't be called directly to visualize the point cloud. Instead, call
-    #     `visualize_plotly`. Instead, this is helpful for visualizing multiple point clouds.
-    #     """
-    #     pts = self.xyz
-    #     rgb = self.rgb
-    #     if self.is_torch:
-    #         pts = pts.detach().numpy()
-    #         if self.has_rgb:
-    #             rgb = rgb.detach().numpy()
-
-    #     scatter_kwargs = {
-    #         'x': pts[0, :],
-    #         'y': pts[1, :],
-    #         'z': pts[2, :],
-    #         "marker": {
-    #             "size": marker_size
-    #         },
-    #         "opacity": opacity
-    #     }
-
-    #     # TODO: Maybe pass in the edges of the template so that we can visualize the edges as well?
-    #     # This currently assumes rope-like edges.
-    #     if markers_only:
-    #         scatter_kwargs["mode"] = "markers"
-
-    #     if trace_name is not None:
-    #         scatter_kwargs["name"] = trace_name
-    #         scatter_kwargs["showlegend"] = True
-    #     else:
-    #         scatter_kwargs["showlegend"] = False
-
-    #     if self.has_rgb:
-    #         if color is not None:
-    #             print("`color` specified in PointCloud plot function but cloud has RGB. Using the "
-    #                   "cloud's RGB instead")
-
-    #         if not self.is_rgb_normalized:
-    #             rgb = rgb.astype(float) / 255.
-    #         scatter_kwargs["marker"]["color"] = rgb.T
-    #     elif color is not None:
-    #         scatter_kwargs["marker"]["color"] = color
-    #     else:
-    #         # The color cycler should take care of auto-generating colors.
-    #         pass
-
-    #     return scatter_kwargs
 
     def form_rerun_kwargs(self, radii: float = 0.01, color: Optional[np.ndarray] = None):
         pts = self.xyz
@@ -358,36 +256,6 @@ class PointCloud(BaseTypeMixin):
         kwargs = {"positions": pts, "colors": rgb, "radii": radii}
 
         return kwargs
-
-    # def visualize_plotly(self, marker_size=POINT_CLOUD_MARKER_SIZE):
-    #     """Visualizes the tracked template in a plotly figure"""
-    #     scatter_kwargs = self.form_plotly_scatter3d_kwargs(marker_size=marker_size)
-    #     trace = [go.Scatter3d(**scatter_kwargs)]
-
-    #     # Find maximum axis range and create the figure's axes from this so that we ensure the
-    #     # dimensions are accurately represented.
-    #     pts_min_axiswise, pts_max_axiswise = self.get_xyz_bounds_numpy()
-    #     pts_ranges_axiswise = pts_max_axiswise - pts_min_axiswise
-    #     ax_midpts = pts_ranges_axiswise / 2. + pts_min_axiswise
-    #     range_max = np.max(pts_ranges_axiswise)
-    #     ax_mins = ax_midpts - range_max
-    #     ax_maxes = ax_midpts + range_max
-
-    #     layout = go.Layout(title="PointCloud Visualization",
-    #                        autosize=False,
-    #                        width=750,
-    #                        height=750,
-    #                        scene=go.layout.Scene(
-    #                            xaxis=go.layout.scene.XAxis(range=[ax_mins[0], ax_maxes[0]],
-    #                                                        autorange=False),
-    #                            yaxis=go.layout.scene.YAxis(range=[ax_mins[1], ax_maxes[1]],
-    #                                                        autorange=False),
-    #                            zaxis=go.layout.scene.ZAxis(range=[ax_mins[2], ax_maxes[2]],
-    #                                                        autorange=False),
-    #                            aspectmode="cube"))
-
-    #     fig = go.Figure(data=trace, layout=layout)
-    #     fig.show()
 
     def copy(self) -> 'PointCloud':
         if self.is_torch:
