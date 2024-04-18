@@ -1,8 +1,18 @@
 import os, sys
 import numpy as np
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+import cv2
+import limap
+import limap.base as _base
+import limap.estimators as _estimators
+import logging
+import argparse
+from pathlib import Path
+from hloc.utils.read_write_model import *
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from Hypersim import read_raydepth, raydepth2depth
+#from Hypersim import read_raydepth, raydepth2depth
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import limap.base as _base
@@ -12,10 +22,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from update import BasicUpdateBlock, SmallUpdateBlock
-from extractor import BasicEncoder, SmallEncoder
-from corr import CorrBlock, AlternateCorrBlock
-from utils.utils import bilinear_sampler, coords_grid, upflow8
+#from update import BasicUpdateBlock, SmallUpdateBlock
+#from extractor import BasicEncoder, SmallEncoder
+#from corr import CorrBlock, AlternateCorrBlock
+#from utils.utils import bilinear_sampler, coords_grid, upflow8
 
 
 class HypersimDepthReader(_base.BaseDepthReader):
@@ -64,28 +74,7 @@ def read_scene_hypersim(cfg, dataset, scene_id, cam_id=0, load_depth=False):
         return imagecols, depths
     else:
         return imagecols
-
-
-
-
-
-
-
-import os, sys
-import numpy as np
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-import cv2
-import limap
-import limap.base as _base
-import limap.estimators as _estimators
-import logging
-import argparse
-from pathlib import Path
-from hloc.utils.read_write_model import *
-
+    
 formatter = logging.Formatter(
     fmt='[%(asctime)s %(name)s %(levelname)s] %(message)s',
     datefmt='%Y/%m/%d %H:%M:%S')

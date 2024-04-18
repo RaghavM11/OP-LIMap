@@ -12,16 +12,13 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.append(SCRIPTS_DIR.as_posix())
 from path_fixer import REPO_DIR, allow_limap_imports
 
-allow_limap_imports()
-import numpy as np
-import limap_extension as lext
-from limap_extension import constants
-from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
-from limap_extension.utils.io import read_all_rgbd, read_all_pose
+allow_limap_imports()   
+
+import limap
 import limap.util.config as cfgutils
 from Hypersim import Hypersim
 from loader import read_scene_hypersim
-import limap.base as _base
+
 
 # from limap_extension.line_triangulation import line_triangulation
 
@@ -117,17 +114,17 @@ def parse_config():
     shortcuts['-nn'] = '--n_neighbors'
     shortcuts['-sid'] = '--scene_id'
     cfg = cfgutils.update_config(cfg, unknown, shortcuts)
-    cfg["folder_to_load"] = args.npyfolder
-    if cfg["folder_to_load"] is None:
-        cfg["folder_to_load"] = os.path.join("precomputed", "hypersim", cfg["scene_id"])
-    return cfg
+    #cfg["folder_to_load"] = args.npyfolder
+    cfg["folder_to_load"] = "/home/mr/Desktop/Navarch 568/Project/LIMap-Extension/cfgs/"
+    #if cfg["folder_to_load"] is None:
+        #cfg["folder_to_load"] =  cfg[""]
+    #return cfg
 
 
 def main():
     cfg = parse_config()
     # print(cfg)
     # return
-
     # TODO: It's up to group members to decide if we need to/want to run HyperSim or instead fake
     # the run with our ground truth information.
     # dataset = Hypersim(cfg["data_dir"])
