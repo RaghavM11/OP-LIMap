@@ -39,6 +39,7 @@ CACHED_JOBS_DIR.mkdir(exist_ok=True, parents=True)
 
 @dataclass(frozen=True, eq=True)
 class Job:
+    name: str
     scenario: str
     difficulty: str
     trial: str
@@ -52,10 +53,10 @@ class Job:
         trial_path = DATASET_DIR / cfg["scenario"] / cfg["difficulty"] / cfg["trial"]
         cfg["img_direction"] = (ImageDirection.LEFT
                                 if cfg["img_direction"] == "left" else ImageDirection.RIGHT)
-        return Job(**cfg, trial_path=trial_path)
+        return Job(**cfg, trial_path=trial_path)  #, trial_path=trial_path)
 
     def get_cache_path(self) -> Path:
-        return CACHED_JOBS_DIR / f"{hash(self)}.pkl"
+        return CACHED_JOBS_DIR / f"{self.name}.pkl"
 
     def cache_job(self) -> Path:
         out_path = self.get_cache_path()
@@ -266,7 +267,7 @@ def spawn_job(job: Job):
             # print("targets: ", targets)
 
             yield {
-                "basename": f"process_mask_{f_t}",
+                "name": f"process_mask_{f_t}",
                 "actions": [(process_single_frame_pair, [job, idx_t, poses])],
                 "file_dep": [job_path],
                 "targets": [targets],
@@ -294,7 +295,7 @@ def task_spawn_jobs():
         yield spawn_job(job)
 
 
-# def task_zip_reprojections():
+# def task_zip_masks():
 
 #     def get_zip_target(direction: ImageDirection):
 #         return DATASET_DIR / f"{SCENARIO}_{DIFFICULTY}_{TRIAL}_reprojections_{direction.value}.zip"
