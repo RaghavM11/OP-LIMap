@@ -25,6 +25,7 @@ from limap_extension.img_cloud_transforms import reproject_img
 from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 
 DEVICE_DEFAULT = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+RAFT_MODEL_PATH = REPO_PATH / 'raft-sintel.pth'
 
 
 def interpolateImage(image, samples):
@@ -199,9 +200,8 @@ if __name__ == '__main__':
     # ten = torch.tensor([1, 2, 3, 4, 5])
     # print(ten.device)
 
-    path = REPO_PATH / 'raft-sintel.pth'
     flow = OpticalFlow(None)
-    flow.load_model(path, Args())
+    flow.load_model(RAFT_MODEL_PATH, Args())
     for i in range(357):
         j = i + 1
         if (j > 356):
