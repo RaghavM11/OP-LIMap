@@ -115,9 +115,9 @@ downloaded_zips = download_zips(urls)
 
 # yapf: disable
 trial_filter = [
-    f"{SCENARIO}/{DIFFICULTY}/P005",
-    f"{SCENARIO}/{DIFFICULTY}/P006",
-    f"{SCENARIO}/{DIFFICULTY}/P007"
+    f"{SCENARIO}/{DIFFICULTY}/P001",
+    f"{SCENARIO}/{DIFFICULTY}/P002",
+    f"{SCENARIO}/{DIFFICULTY}/P003"
 ]
 # yapf: enable
 
@@ -127,7 +127,7 @@ for zip_file in downloaded_zips:
     # extract_dir = EXTRACT_ROOT / zip_file.stem
     extract_dir = EXTRACT_ROOT
     extract_zip(zip_file, extract_dir, trial_filter)
-    print(f"Extracted {zip_file}")
+    print(f"Extracted {zip_file} to base directory {extract_dir}")
 
 # def read_numpy_file(numpy_file):
 #     '''
