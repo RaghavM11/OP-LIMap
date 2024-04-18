@@ -56,15 +56,15 @@ def get_uv_coords(img_rows, img_cols):
     V, U = np.meshgrid(np.arange(img_rows), np.arange(img_cols))
     # U, V = np.meshgrid(np.arange(img_cols), np.arange(img_rows))
     # V, U = np.meshgrid(np.arange(img_cols), np.arange(img_rows))
-    print("U shape before flatten:", U.shape)
+    # print("U shape before flatten:", U.shape)
     V = V.T.flatten()
     U = U.T.flatten()
-    print("U max:", np.max(U), "V max:", np.max(V))
+    # print("U max:", np.max(U), "V max:", np.max(V))
     return U, V
 
 
 def augment_coords(coords: np.ndarray):
-    if ((not coords.shape[1] == 3) or (not coords.shape[1] != 2)):
+    if ((coords.shape[1] != 3) and (coords.shape[1] != 2)):
         raise ValueError(f"Coords must have 2 or 3 columns, got shape {coords.shape}")
     return np.hstack([coords, np.ones((coords.shape[0], 1))])
 
@@ -108,7 +108,7 @@ def uvz_ned_to_xyz_cam(us: np.ndarray,
 
     # xyzs_img = np.stack((xs, ys, zs), axis=1)
     xyzs_ned = np.stack((xs, ys, zs), axis=1)
-    print("xyzs_img shape:", xyzs_ned.shape)
+    # print("xyzs_img shape:", xyzs_ned.shape)
     # xyzs_cam = (H_IMG_TO_CAM @ np.hstack([xyzs_img, np.ones((xyzs_img.shape[0], 1))]).T).T[:, :-1]
     # xyzs_cam = tform_coords(np.linalg.inv(H_IMG_TO_CAM), xyzs_img)
     xyzs_cam = tform_coords(H_NED_TO_CAM, xyzs_ned)
@@ -143,6 +143,9 @@ def xyz_cam_to_uvz_ned(
     vs = (ys / (zs * depth_units_to_tracked_units * constant_v)) + center_v
 
     if is_rounding_to_int:
+        print(
+            "Need to check depth of the coordinates that correspond to the same pixel so that we can select the one with the smallest depth."
+        )
         us = np.round(us).astype(int)
         vs = np.round(vs).astype(int)
 
@@ -172,8 +175,8 @@ def imgs_to_clouds_np(
 
     U, V = get_uv_coords(depth_img.shape[0], depth_img.shape[1])
 
-    print("U[:10]:", U[:10])
-    print("V[:10]:", V[:10])
+    # print("U[:10]:", U[:10])
+    # print("V[:10]:", V[:10])
 
     # Now we get the coordinates of the corners. This helps down the line to crop the view to only
     # the parts of the image that are visible in the other image.
@@ -193,14 +196,14 @@ def imgs_to_clouds_np(
     # corner_idxs = [0, -depth_img.shape[1], depth_img.shape[1] - 1, -1]
     # corner_idxs = [0, depth_img.shape[1] - 1, -depth_img.shape[1], -1]
 
-    print("U[corner_idxs.upper_left]", U[corner_idxs.upper_left])
-    print("V[corner_idxs.upper_left]", V[corner_idxs.upper_left])
-    print("U[corner_idxs.upper_right]", U[corner_idxs.upper_right])
-    print("V[corner_idxs.upper_right]", V[corner_idxs.upper_right])
-    print("U[corner_idxs.lower_left]", U[corner_idxs.lower_left])
-    print("V[corner_idxs.lower_left]", V[corner_idxs.lower_left])
-    print("U[corner_idxs.lower_right]", U[corner_idxs.lower_right])
-    print("V[corner_idxs.lower_right]", V[corner_idxs.lower_right])
+    # print("U[corner_idxs.upper_left]", U[corner_idxs.upper_left])
+    # print("V[corner_idxs.upper_left]", V[corner_idxs.upper_left])
+    # print("U[corner_idxs.upper_right]", U[corner_idxs.upper_right])
+    # print("V[corner_idxs.upper_right]", V[corner_idxs.upper_right])
+    # print("U[corner_idxs.lower_left]", U[corner_idxs.lower_left])
+    # print("V[corner_idxs.lower_left]", V[corner_idxs.lower_left])
+    # print("U[corner_idxs.lower_right]", U[corner_idxs.lower_right])
+    # print("V[corner_idxs.lower_right]", V[corner_idxs.lower_right])
 
     # Extremely heavy handed but I want to be sure I've got this right.
     assert U[corner_idxs.upper_left] == 0
@@ -221,8 +224,8 @@ def imgs_to_clouds_np(
     # Get individual values.
     # NOTE: x is the depth here!!
     xyz_cam = uvz_ned_to_xyz_cam(U, V, depth_flat, intrinsic, depth_units_to_tracked_units)
-    print("xyz_cam mins:", np.min(xyz_cam, axis=0))
-    print("xyz_cam maxes:", np.max(xyz_cam, axis=0))
+    # print("xyz_cam mins:", np.min(xyz_cam, axis=0))
+    # print("xyz_cam maxes:", np.max(xyz_cam, axis=0))
     xs, ys, zs = xyz_cam[:, 0], xyz_cam[:, 1], xyz_cam[:, 2]
 
     # Z = 0 indicates the point is invalid in the depth images that I've been working with in the
@@ -230,7 +233,7 @@ def imgs_to_clouds_np(
     where_depth_valid = xs != 0.0
 
     num_invalid_depths = np.count_nonzero(~where_depth_valid)
-    print(f"Number of invalid depths: {num_invalid_depths}")
+    # print(f"Number of invalid depths: {num_invalid_depths}")
 
     # This can be used to apply a segmentation mask so that we get a segmented point cloud. I don't
     # think we'll need this but I'm keeping it in case we do.
@@ -248,7 +251,7 @@ def imgs_to_clouds_np(
 
     corner_idxs.adjust_coords_given_depth_validity(where_depth_valid, depth_img.shape[0])
 
-    print("Corner indexes:", corner_idxs.as_np_array())
+    # print("Corner indexes:", corner_idxs.as_np_array())
 
     return PointCloud(xyz_cloud_unfiltered.T, rgb_cloud_unfiltered.T), corner_idxs
 
@@ -287,13 +290,13 @@ def cloud_to_img_np(
     us, vs, zs = xyz_cam_to_uvz_ned(cloud.xyz,
                                     intrinsic=intrinsic,
                                     depth_units_to_tracked_units=depth_units_to_tracked_units)
-    print("us max:", np.max(us))
-    print("vs max:", np.max(vs))
-    print("zs max:", np.max(zs))
+    # print("us max:", np.max(us))
+    # print("vs max:", np.max(vs))
+    # print("zs max:", np.max(zs))
 
-    print("us min:", np.min(us))
-    print("vs min:", np.min(vs))
-    print("zs min:", np.min(zs))
+    # print("us min:", np.min(us))
+    # print("vs min:", np.min(vs))
+    # print("zs min:", np.min(zs))
 
     if corner_idxs is not None:
         # If no corner indexes are provided, the valid bounding box is the entire image.
@@ -393,16 +396,16 @@ def reproject_img(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, BoundingBox]:
     """Reprojects an image from frame 1 to frame 2 using the poses of the two frames."""
     cloud_frame_1, corner_idxs = imgs_to_clouds_np(rgb_1, depth_1, CAM_INTRINSIC)
-    print("Cloud frame 1 maxes:", np.max(cloud_frame_1.xyz, axis=0))
-    print("Cloud frame 1 mins:", np.min(cloud_frame_1.xyz, axis=0))
+    # print("Cloud frame 1 maxes:", np.max(cloud_frame_1.xyz, axis=0))
+    # print("Cloud frame 1 mins:", np.min(cloud_frame_1.xyz, axis=0))
 
     T_cam_1_to_world = H_CAM_TO_NED @ pose_1_world_ned
     T_cam_2_to_world = H_CAM_TO_NED @ pose_2_world_ned
     T_cam_1_to_cam_2 = inverse_pose(T_cam_2_to_world) @ T_cam_1_to_world
 
     cloud_tformed = transform_cloud(cloud_frame_1, T_cam_1_to_cam_2)
-    print("Transformed Cloud maxes:", np.max(cloud_tformed.xyz, axis=0))
-    print("Transformed Cloud mins:", np.min(cloud_tformed.xyz, axis=0))
+    # print("Transformed Cloud maxes:", np.max(cloud_tformed.xyz, axis=0))
+    # print("Transformed Cloud mins:", np.min(cloud_tformed.xyz, axis=0))
     img_tformed, depth_tformed, mask_valid_projection, valid_bbox = cloud_to_img_np(
         cloud_tformed,
         CAM_INTRINSIC,
