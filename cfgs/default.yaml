@@ -1,6 +1,7 @@
 ---
 ##############################
 # global config
+
 cfg_type: "triangulation"
 weight_path: "~/.limap/models"
 load_meta: False
@@ -24,9 +25,9 @@ undistortion_output_dir: "undistorted_images"
 # Extension dataset specification
 extension_dataset:
     # Based on the dataset path, we'll output to OUTPUT_ROOT/path_relative_to_dataset_directory
-    path_to_repo: /home/dcolli23/code/LIMap-Extension
+    path_to_repo: /home/mr/Desktop/Navarch 568/Project/LIMap-Extension/
     # Example: /home/dcolli23/code/
-    dataset_path: datasets/ocean/Hard/P006
+    dataset_path: /home/mr/Desktop/Navarch 568/Project/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks-002/
     # scene_id: null
     # cam_id: left  # Can be "left", "right", or "both"
     pruning_dynamic_objects: true
