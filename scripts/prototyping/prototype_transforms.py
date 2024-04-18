@@ -7,7 +7,7 @@ import torch
 from PIL import Image
 import cv2
 
-REPO_DIR = Path(__file__).resolve().parents[1]
+REPO_DIR = Path(__file__).resolve().parents[2]
 # print(REPO_DIR)
 sys.path.append(REPO_DIR.as_posix())
 
