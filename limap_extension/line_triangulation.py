@@ -154,7 +154,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
             match1 = np.intersect1d(match_x1, match_y1)
             match2 = np.intersect1d(match_x2, match_y2)
 
-            matching_segments = np.intersect1d(match1, match2)
+            matching_segments = np.union1d(match1, match2)
             # remove the matching segments
             for idx in matching_segments:
                 segment = np.delete(segment, idx, axis=0)
