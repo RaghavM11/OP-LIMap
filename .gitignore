@@ -165,3 +165,5 @@ Pipfile.lock
 
 # Ignore all data files
 datasets/
+
+tmp/
