@@ -13,11 +13,15 @@ sys.path.append(SCRIPTS_DIR.as_posix())
 from path_fixer import REPO_DIR, allow_limap_imports
 
 allow_limap_imports()
-
-import limap
+import numpy as np
+import limap_extension as lext
+from limap_extension import constants
+from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
+from limap_extension.utils.io import read_all_rgbd, read_all_pose
 import limap.util.config as cfgutils
 from Hypersim import Hypersim
 from loader import read_scene_hypersim
+import limap.base as _base
 
 # from limap_extension.line_triangulation import line_triangulation
 
@@ -31,10 +35,54 @@ DEFAULT_CONFIG_PATH = REPO_DIR / "cfgs" / "default.yaml"
 # I believe this is the config file that defines the base configuration. Any values specified in the
 # "--config-file" argument will override the values in this configuration when running LIMAP.
 DEFAULT_BASE_CONFIG_PATH = REPO_DIR / "cfgs" / "triangulation" / "default.yaml"
-
+DATASET_DIR =
+SCENARIO = 
+DIFFICULTY =
+TRIAL = 
+TRIAL_PATH = DATASET_DIR / SCENARIO / DIFFICULTY / TRIAL
 
 def run_scene_hypersim(cfg, dataset, scene_id, cam_id=0):
     imagecols = read_scene_hypersim(cfg, dataset, scene_id, cam_id=cam_id, load_depth=False)
+    linetracks = limap.runners.line_triangulation(cfg, imagecols)
+    return linetracks
+
+def rub_scene_tartanair_pruning(cfg, cam_id=0):
+    K = constants.CAM_INTRINSIC.astype(np.float32)
+    img_hw = [480, 640]
+    images, image_name, _, _ = read_all_rgbd(TRIAL_PATH, constants.ImageDirection.LEFT)
+    cam_pose = read_all_pose(TRIAL_PATH, constants.ImageDirection.LEFT)
+    cam_ext = [] 
+    for pose in cam_pose:
+        cam_ext.append(get_transform_matrix_from_pose_array(pose))
+    
+    cameras, camimages = {}, {}
+    cameras[0] = _base.Camera("SIMPLE_PINHOLE", K, cam_id=0, hw=img_hw)
+    for image_id in range(images.shape[0]):
+        pose = _base.CameraPose(cam_ext[image_id][:3, :3], cam_ext[image_id][:3, 3])
+        imname = image_name[image_id]
+        camimage = _base.CameraImage(0, pose, image_name=imname)
+        camimages[image_id] = camimage
+    imagecols = _base.ImageCollection(cameras, camimages)
+    linetracks = lext.line_triangulation(cfg, imagecols)
+    return linetracks
+
+def run_scene_tartanair(cfg, cam_id=0):
+    K = constants.CAM_INTRINSIC.astype(np.float32)
+    img_hw = [480, 640]
+    images, image_name, _, _ = read_all_rgbd(TRIAL_PATH, constants.ImageDirection.LEFT)
+    cam_pose = read_all_pose(TRIAL_PATH, constants.ImageDirection.LEFT)
+    cam_ext = [] 
+    for pose in cam_pose:
+        cam_ext.append(get_transform_matrix_from_pose_array(pose))
+    
+    cameras, camimages = {}, {}
+    cameras[0] = _base.Camera("SIMPLE_PINHOLE", K, cam_id=0, hw=img_hw)
+    for image_id in range(images.shape[0]):
+        pose = _base.CameraPose(cam_ext[image_id][:3, :3], cam_ext[image_id][:3, 3])
+        imname = image_name[image_id]
+        camimage = _base.CameraImage(0, pose, image_name=imname)
+        camimages[image_id] = camimage
+    imagecols = _base.ImageCollection(cameras, camimages)
     linetracks = limap.runners.line_triangulation(cfg, imagecols)
     return linetracks
 
