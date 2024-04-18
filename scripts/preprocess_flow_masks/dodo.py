@@ -291,43 +291,52 @@ def task_spawn_jobs():
 
     cfg.update_cache()
 
-    for job in Config.read_cache().jobs:
+    for job in cfg.jobs:
         yield spawn_job(job)
 
 
-# def task_zip_masks():
+def task_zip_trials():
 
-#     def get_zip_target(direction: ImageDirection):
-#         return DATASET_DIR / f"{SCENARIO}_{DIFFICULTY}_{TRIAL}_reprojections_{direction.value}.zip"
+    def get_zip_target(job: Job):
+        # return DATASET_DIR / f"{job.scenario}_{job.difficulty}_{job.trial}_{job.img_direction.value}_camera_with_flow_masks.zip"
+        return DATASET_DIR / f"{job.scenario}_{job.difficulty}_{job.trial}_with_flow_masks.zip"
 
-#     def zip_reprojections(direction: ImageDirection):
-#         import zipfile
+    def zip_trial(job: Job):
+        import zipfile
 
-#         # out_path = DATASET_DIR /
-#         # f"{SCENARIO}_{DIFFICULTY}_{TRIAL}_reprojections_{direction.value}.zip"
-#         out_path = get_zip_target(direction)
-#         # in_dir = TRIAL_PATH / f"reproj_{direction.value}"
+        # out_path = DATASET_DIR /
+        # f"{SCENARIO}_{DIFFICULTY}_{TRIAL}_reprojections_{direction.value}.zip"
+        out_path = get_zip_target(job)
+        # in_dir = TRIAL_PATH / f"reproj_{direction.value}"
 
-#         paths_to_zip = targets_from_file_list(direction)
+        # paths_to_zip = targets_from_file_list(direction)
+        # get_mask_output_path(job)
+        # paths_to_zip = [
+        #     get_mask_output_path(job, i)
+        #     for i in range(get_max_img_idx(job.trial_path, job.img_direction) + 1)
+        # ]
+        trial_dir = DATASET_DIR / job.scenario / job.difficulty / job.trial
+        paths_to_zip = trial_dir.glob("./**/*")
 
-#         with zipfile.ZipFile(out_path.as_posix(), 'w') as z:
-#             # Want to write the zip file in a way that is easy to extract, so chop off everything
-#             # prior to the scenario.
-#             for path_pair in paths_to_zip:
-#                 for p in path_pair:
-#                     # arc_name = out_path.relative_to(DATASET_DIR)
-#                     arc_name = p.relative_to(DATASET_DIR)
-#                     z.write(p, arc_name)
+        with zipfile.ZipFile(out_path.as_posix(), 'w') as z:
+            # Want to write the zip file in a way that is easy to extract, so chop off everything
+            # prior to the scenario.
+            for mask_path in paths_to_zip:
+                arc_name = mask_path.relative_to(DATASET_DIR)
+                z.write(mask_path, arc_name)
 
-#     for direction in [ImageDirection.RIGHT, ImageDirection.LEFT]:
-#         file_dep = [TARGET_LIST_RIGHT] if direction == ImageDirection.RIGHT else [TARGET_LIST_LEFT]
-#         zip_target = get_zip_target(direction)
-#         yield {
-#             "basename": f"zip_reprojections_{direction.value}",
-#             "actions": [(zip_reprojections, [direction])],
-#             "file_dep": file_dep,
-#             "targets": [zip_target],
-#         }
+    for job in Config().jobs:
+        # file_dep = [TARGET_LIST_RIGHT] if direction == ImageDirection.RIGHT else
+        # [TARGET_LIST_LEFT]
+        file_dep = [job.get_cache_path()]
+        zip_target = get_zip_target(job)
+        yield {
+            "basename": f"zip_trials_{job.name}",
+            "actions": [(zip_trial, [job])],
+            "file_dep": file_dep,
+            "targets": [zip_target],
+        }
+
 
 if __name__ == "__main__":
     # img_gt_dir = TRIAL_PATH / "image_right"
