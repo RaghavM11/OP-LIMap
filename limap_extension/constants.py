@@ -1,6 +1,11 @@
 from enum import Enum
+from pathlib import Path
 
 import numpy as np
+
+ROOT_DIR = Path(__file__).resolve().parent
+REPO_DIR = ROOT_DIR.parent
+DATASET_DIR = REPO_DIR / "datasets"
 
 
 class ImageType(Enum):
