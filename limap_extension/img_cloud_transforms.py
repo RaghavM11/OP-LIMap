@@ -74,10 +74,9 @@ def tform_coords(tform: np.ndarray, coords: np.ndarray) -> np.ndarray:
     return (tform @ coords_aug.T).T[:, :-1]
 
 
-# def clip_uv_coords(us: np.ndarray, vs: np.ndarray, img_width: int, img_height: int) ->
-# Tuple[np.ndarray, np.ndarray]:
 def find_valid_uv_coords(us: np.ndarray, vs: np.ndarray, img_height: int,
-                         img_width: int) -> Tuple[np.ndarray, np.ndarray]:
+                         img_width: int) -> np.ndarray:
+    """Returns mask of where the UV coordinates are valid given image dimensions"""
     if us.shape != vs.shape:
         raise ValueError("Us and Vs must have the same shape.")
 
