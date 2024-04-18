@@ -167,3 +167,6 @@ Pipfile.lock
 datasets/
 
 tmp/
+
+# Ignore doit database
+.doit.db*
