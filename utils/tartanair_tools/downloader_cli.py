@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Union
 import requests
 import os
 from tqdm import tqdm
@@ -18,7 +18,7 @@ REPO_DIR = ROOT_DIR.parents[1]
 DOWNLOAD_DIR = REPO_DIR / "datasets"
 EXTRACT_ROOT = REPO_DIR / "datasets"
 
-SCENARIO = "ocean"
+SCENARIO = "carwelding"
 DIFFICULTY = "Hard"
 
 
@@ -27,14 +27,14 @@ def get_urls(scenario, difficulty):
     Get the URLs for the specified scenario and difficulty
     '''
     urls = [
-        # f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/depth_left.zip",
-        # f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/depth_right.zip",
-        # f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/flow_flow.zip",
-        # f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/flow_mask.zip",
+        f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/depth_left.zip",
+        f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/depth_right.zip",
+        f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/flow_flow.zip",
+        f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/flow_mask.zip",
         f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/image_left.zip",
         f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/image_right.zip",
-        # f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/seg_left.zip",
-        # f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/seg_right.zip",
+        f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/seg_left.zip",
+        f"https://airlab-share.andrew.cmu.edu:8081/tartanair/{scenario}/{difficulty}/seg_right.zip",
     ]
     return urls
 
@@ -82,12 +82,26 @@ def download_zips(urls: List[str]) -> List[Path]:
     return downloaded_zips
 
 
-def extract_zip(zip_file, extract_to, trial_filter: str):
+def _extract_zip_no_filter(zip_file, extract_to):
+    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+        zip_ref.extractall(extract_to)
+
+
+def _extract_zip_with_filter(zip_file, extract_to, trial_filter: Union[List[str], str]):
+    if isinstance(trial_filter, str):
+        trial_filter = [trial_filter]
+
     with zipfile.ZipFile(zip_file, 'r') as zip_ref:
         for info in zip_ref.namelist():
-            if info.startswith(trial_filter):
-                # destination = DESTINATION_ROOT /
+            if any([info.startswith(filt) for filt in trial_filter]):
                 zip_ref.extract(info, path=extract_to)
+
+
+def extract_zip(zip_file, extract_to, trial_filter: Optional[Union[List[str], str]] = None):
+    if trial_filter is not None:
+        _extract_zip_with_filter(zip_file, extract_to, trial_filter)
+    else:
+        _extract_zip_no_filter(zip_file, extract_to)
 
 
 # List of URLs to download
@@ -99,7 +113,13 @@ EXTRACT_ROOT.mkdir(parents=True, exist_ok=True)
 
 downloaded_zips = download_zips(urls)
 
-trial_filter = f"{SCENARIO}/{DIFFICULTY}/P006"
+# yapf: disable
+trial_filter = [
+    f"{SCENARIO}/{DIFFICULTY}/P001",
+    f"{SCENARIO}/{DIFFICULTY}/P002",
+    f"{SCENARIO}/{DIFFICULTY}/P003"
+]
+# yapf: enable
 
 # Extract each downloaded file
 for zip_file in downloaded_zips:
@@ -107,7 +127,7 @@ for zip_file in downloaded_zips:
     # extract_dir = EXTRACT_ROOT / zip_file.stem
     extract_dir = EXTRACT_ROOT
     extract_zip(zip_file, extract_dir, trial_filter)
-    print(f"Extracted {zip_file}")
+    print(f"Extracted {zip_file} to base directory {extract_dir}")
 
 # def read_numpy_file(numpy_file):
 #     '''

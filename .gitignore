@@ -165,3 +165,5 @@ Pipfile.lock
 
 # Ignoring the full dataset directory now that we're not using LFS.
 datasets/
+
+tmp/
