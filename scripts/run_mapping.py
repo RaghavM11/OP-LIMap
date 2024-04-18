@@ -130,8 +130,9 @@ def main():
 
     # TODO: It's up to group members to decide if we need to/want to run HyperSim or instead fake
     # the run with our ground truth information.
-    dataset = Hypersim(cfg["data_dir"])
-    run_scene_hypersim(cfg, dataset, cfg["scene_id"], cam_id=cfg["cam_id"])
+    # dataset = Hypersim(cfg["data_dir"])
+    # run_scene_hypersim(cfg, dataset, cfg["scene_id"], cam_id=cfg["cam_id"])
+    rub_scene_tartanair_pruning(cfg, cam_id=0)
 
 
 if __name__ == '__main__':
