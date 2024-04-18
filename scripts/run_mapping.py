@@ -12,13 +12,18 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.append(SCRIPTS_DIR.as_posix())
 from path_fixer import REPO_DIR, allow_limap_imports
 
-allow_limap_imports()   
+allow_limap_imports()
+
+import numpy as np
 
 import limap
+import limap_extension as lext
+import limap.base as _base
 import limap.util.config as cfgutils
-from Hypersim import Hypersim
-from loader import read_scene_hypersim
 
+from limap_extension import constants
+from limap_extension.utils.io import read_all_rgbd, read_all_pose
+from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 
 # from limap_extension.line_triangulation import line_triangulation
 
@@ -32,26 +37,27 @@ DEFAULT_CONFIG_PATH = REPO_DIR / "cfgs" / "default.yaml"
 # I believe this is the config file that defines the base configuration. Any values specified in the
 # "--config-file" argument will override the values in this configuration when running LIMAP.
 DEFAULT_BASE_CONFIG_PATH = REPO_DIR / "cfgs" / "triangulation" / "default.yaml"
-DATASET_DIR =
-SCENARIO = 
-DIFFICULTY =
-TRIAL = 
+DATASET_DIR = REPO_DIR / "datasets"
+SCENARIO = "carwelding"
+DIFFICULTY = "Hard"
+TRIAL = "P001"
 TRIAL_PATH = DATASET_DIR / SCENARIO / DIFFICULTY / TRIAL
 
-def run_scene_hypersim(cfg, dataset, scene_id, cam_id=0):
-    imagecols = read_scene_hypersim(cfg, dataset, scene_id, cam_id=cam_id, load_depth=False)
-    linetracks = limap.runners.line_triangulation(cfg, imagecols)
-    return linetracks
+# def run_scene_hypersim(cfg, dataset, scene_id, cam_id=0):
+#     # imagecols = read_scene_hypersim(cfg, dataset, scene_id, cam_id=cam_id, load_depth=False)
+#     linetracks = limap.runners.line_triangulation(cfg, imagecols)
+#     return linetracks
+
 
 def rub_scene_tartanair_pruning(cfg, cam_id=0):
     K = constants.CAM_INTRINSIC.astype(np.float32)
     img_hw = [480, 640]
     images, image_name, _, _ = read_all_rgbd(TRIAL_PATH, constants.ImageDirection.LEFT)
     cam_pose = read_all_pose(TRIAL_PATH, constants.ImageDirection.LEFT)
-    cam_ext = [] 
+    cam_ext = []
     for pose in cam_pose:
         cam_ext.append(get_transform_matrix_from_pose_array(pose))
-    
+
     cameras, camimages = {}, {}
     cameras[0] = _base.Camera("SIMPLE_PINHOLE", K, cam_id=0, hw=img_hw)
     for image_id in range(images.shape[0]):
@@ -63,15 +69,16 @@ def rub_scene_tartanair_pruning(cfg, cam_id=0):
     linetracks = lext.line_triangulation(cfg, imagecols)
     return linetracks
 
+
 def run_scene_tartanair(cfg, cam_id=0):
     K = constants.CAM_INTRINSIC.astype(np.float32)
     img_hw = [480, 640]
     images, image_name, _, _ = read_all_rgbd(TRIAL_PATH, constants.ImageDirection.LEFT)
     cam_pose = read_all_pose(TRIAL_PATH, constants.ImageDirection.LEFT)
-    cam_ext = [] 
+    cam_ext = []
     for pose in cam_pose:
         cam_ext.append(get_transform_matrix_from_pose_array(pose))
-    
+
     cameras, camimages = {}, {}
     cameras[0] = _base.Camera("SIMPLE_PINHOLE", K, cam_id=0, hw=img_hw)
     for image_id in range(images.shape[0]):
@@ -117,7 +124,7 @@ def parse_config():
     #cfg["folder_to_load"] = args.npyfolder
     cfg["folder_to_load"] = "/home/mr/Desktop/Navarch 568/Project/LIMap-Extension/cfgs/"
     #if cfg["folder_to_load"] is None:
-        #cfg["folder_to_load"] =  cfg[""]
+    #cfg["folder_to_load"] =  cfg[""]
     #return cfg
 
 
