@@ -1,8 +1,8 @@
 ---
 ##############################
 # global config
-data_dir: "/home/dcolli23/code/LIMap-Extension/datasets"
-scene_id: "ai_001_001"
+data_dir: "/home/mr/Desktop/Navarch 568/Project/LIMap-Extension/datasets"
+scene_id: "carwelding_Hard_P001_with_flow_masks-002"
 cam_id: 0
 max_image_dim: 800
 input_n_views: 100

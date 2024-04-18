@@ -13,8 +13,29 @@ import limap.optimize as _optim
 import limap.runners as _runners
 import limap.util.io as limapio
 import limap.visualize as limapvis
+import PIL
+from PIL import GifImagePlugin
+from PIL import Image
 
 # from limap_extension.
+
+#reading mask
+
+#read all 100 mask using PIL and convert to numpy array
+def mask_to_array():
+    mask_arrays = []
+    directory_path="/home/mr/Desktop/Navarch 568/Project/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks-002/carwelding/Hard/P001/dynamic_obj_masks_left/flow_xyz_method"
+    for filename in os.listdir(directory_path):
+        if filename.endswith(".png"):  # Assuming the masks are PNG files
+            # Construct the full path to the image file
+            full_path = os.path.join(directory_path, filename)
+            # Open the image file using PIL
+            img = Image.open(full_path)
+            # Convert the image to a numpy array
+            mask_array = np.array(img)
+            # Append the mask array to the list
+            mask_arrays.append(mask_array)
+    return np.array(mask_arrays)
 
 
 def read_calc_fake_sfm_data(cfg: Dict):
@@ -129,9 +150,10 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     print("\n\nINSERT LINE PRUNING HERE\n\n")
     # read the masks in from the config file
     # assuming that all the masks from frames 1 - N are stored in masks as a NxHxWx1 matrix
-    masks = cfg["masks"]
+    #masks = cfg["masks"]
+    masks= mask_to_array()
     # N is the number of frames
-    N = 10  # dummy need to change
+    N = masks.shape[0]  # dummy need to change
     for i in range(1, N):
         mask = masks[i]
         # fing dynamic object pixels in the mask and remove them from the 2d segments
@@ -180,7 +202,6 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         #         segment = np.delete(segment, idx, axis=0)
             
         
-
     # All 2d segs is likely an iterable where each item somehow indicates a line in the image
     # (likely (pt_1, pt_2)).
     # idxs_to_keep = []
