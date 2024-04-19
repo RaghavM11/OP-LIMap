@@ -160,7 +160,9 @@ cython_debug/
 #.idea/
 
 # Dylan added to ignore his pipenv virtual environment
-Pipfile
+# Pipfile
+# Still want to ignore the lock file since people are using different versions of Ubuntu and they
+# might conflict?
 Pipfile.lock
 
 # Ignoring the full dataset directory now that we're not using LFS.
