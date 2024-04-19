@@ -3,7 +3,7 @@ import os
 import numpy as np
 from tqdm import tqdm
 from pathlib import Path
-import cv2 
+import cv2
 import limap.base as _base
 import limap.merging as _mrg
 import limap.triangulation as _tri
@@ -17,14 +17,24 @@ import PIL
 from PIL import GifImagePlugin
 from PIL import Image
 
+from pathlib import Path
+import sys
+
+REPO_DIR = Path(__file__).resolve().parents[1]
+sys.path.append(REPO_DIR.as_posix())
+
+from limap_extension.constants import DATASET_DIR
+
 # from limap_extension.
 
 #reading mask
 
+
 #read all 100 mask using PIL and convert to numpy array
 def mask_to_array():
     mask_arrays = []
-    directory_path="/home/mr/Desktop/Navarch 568/Project/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks-002/carwelding/Hard/P001/dynamic_obj_masks_left/flow_xyz_method"
+    directory_path = DATASET_DIR / "carwelding" / "Hard" / "P001" / "dynamic_obj_masks_left" / "flow_xyz_method"
+    # directory_path="/carwelding_Hard_P001_with_flow_masks-002/carwelding/Hard/P001/dynamic_obj_masks_left/flow_xyz_method"
     for filename in os.listdir(directory_path):
         if filename.endswith(".png"):  # Assuming the masks are PNG files
             # Construct the full path to the image file
@@ -53,7 +63,7 @@ def read_calc_fake_sfm_data(cfg: Dict):
     img_dir = root_path / "image_left"
     img_idxs = []
     for img_path in img_dir.iterdir():
-        img_idx = int(img_path.stem.split("_")[1])
+        img_idx = int(img_path.stem.split("_")[0])
         img_idxs.append(img_idx)
     img_idxs.sort()
 
@@ -135,7 +145,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     if ranges is not None:
         raise ValueError("ranges shouldn't be specified. They're calculated in this funciton")
 
-    neighbors, ranges = read_calc_fake_sfm_data()
+    neighbors, ranges = read_calc_fake_sfm_data(cfg)
 
     ##########################################################
     # [B] get 2D line segments for each image and prune them
@@ -151,7 +161,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     # read the masks in from the config file
     # assuming that all the masks from frames 1 - N are stored in masks as a NxHxWx1 matrix
     #masks = cfg["masks"]
-    masks= mask_to_array()
+    masks = mask_to_array()
     # N is the number of frames
     N = masks.shape[0]  # dummy need to change
     for i in range(1, N):
@@ -180,7 +190,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
             # remove the matching segments
             for idx in matching_segments:
                 segment = np.delete(segment, idx, axis=0)
-        
+
         all_2d_segs[i] = segment
         # remove the dynamic object pixels from the 2d segments
         # for pixel in dynamic_object_pixels:
@@ -196,12 +206,11 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         #     x2 = segment[:, 2]
         #     y2 = segment[:, 3]
         #     # check if the pixel is in the segment
-        #     # if it is, remove the segments 
+        #     # if it is, remove the segments
         #     # remove the matching segments
         #     for idx in matching_segments:
         #         segment = np.delete(segment, idx, axis=0)
-            
-        
+
     # All 2d segs is likely an iterable where each item somehow indicates a line in the image
     # (likely (pt_1, pt_2)).
     # idxs_to_keep = []

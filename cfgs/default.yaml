@@ -15,7 +15,7 @@ use_cuda: True
 visualize: True
 max_image_dim: 1600
 skip_exists: False
-output_dir: null
+output_dir: /home/dcolli23/code/LIMap-Extension/outputs/triangulation
 output_folder: "finaltracks"
 load_dir: null
 n_jobs: -1 # for undistortion
@@ -25,26 +25,30 @@ undistortion_output_dir: "undistorted_images"
 # Extension dataset specification
 extension_dataset:
     # Based on the dataset path, we'll output to OUTPUT_ROOT/path_relative_to_dataset_directory
-    path_to_repo: /home/mr/Desktop/Navarch 568/Project/LIMap-Extension/
+    # path_to_repo: /home/mr/Desktop/Navarch 568/Project/LIMap-Extension/
+    path_to_repo: /home/dcolli23/code/LIMap-Extension/
     # Example: /home/dcolli23/code/
-    dataset_path: /home/mr/Desktop/Navarch 568/Project/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks-002/
+    # dataset_path: /home/mr/Desktop/Navarch
+    # 568/Project/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks-002/
+    dataset_path: /home/dcolli23/code/LIMap-Extension/datasets/carwelding/Hard/P001/
     # scene_id: null
     # cam_id: left  # Can be "left", "right", or "both"
     pruning_dynamic_objects: true
+    cam_id: left
 
 ##############################
 # sfm config
-# sfm:
-#     colmap_output_path: "colmap_outputs"
-#     reuse: False
-#     min_triangulation_angle: 1.0
-#     neighbor_type: "dice" # ["overlap", "iou", "dice"]
-#     ranges:
-#         range_robust: [0.05, 0.95]
-#         k_stretch: 1.25
-#     hloc:
-#         descriptor: "superpoint_aachen"
-#         matcher: "NN-superpoint"
+sfm:
+    colmap_output_path: "colmap_outputs"
+    reuse: False
+    min_triangulation_angle: 1.0
+    neighbor_type: "dice" # ["overlap", "iou", "dice"]
+    ranges:
+        range_robust: [0.05, 0.95]
+        k_stretch: 1.25
+    hloc:
+        descriptor: "superpoint_aachen"
+        matcher: "NN-superpoint"
 
 ##############################
 # line detection and matching config

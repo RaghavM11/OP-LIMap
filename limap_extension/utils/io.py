@@ -60,7 +60,7 @@ def read_all_rgbd(
 ) -> Tuple[List[np.ndarray], List[str], List[np.ndarray], List[str]]:
     # Going to read in poses as a hack to figure out how many images we have.
     poses = read_pose(trial_path, img_direction)
-    num_images = poses.shape[0] + 1
+    num_images = poses.shape[0]
     rgbs = []
     rgb_paths = []
     depths = []
