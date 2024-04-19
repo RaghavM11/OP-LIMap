@@ -170,6 +170,7 @@ datasets/
 
 tmp/
 outputs/
+data/
 
 # doit is the package Dylan uses for batched preprocessing. It creates databases and such that
 # should be ignored
