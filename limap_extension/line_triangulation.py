@@ -241,6 +241,12 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     # Delete the lines that are associated with dynamic objects
     # for idx in idxs_to_keep:
 
+    # And now we overwrite the cache with the pruned lines
+    basedir = os.path.join("line_detections", cfg["line2d"]["detector"]["method"])
+    folder_save = os.path.join(cfg["dir_save"], basedir)
+    for img_id in range(masks.shape[0]):
+        limapio.save_txt_segments(folder_save, img_id, all_2d_segs[img_id])
+
     ##########################################################
     # [C] get line matches
     ##########################################################
