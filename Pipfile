@@ -1,0 +1,65 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://download.pytorch.org/whl/cu116"
+verify_ssl = true
+name = "downloadpytorch"
+
+[[source]]
+url = "https://download.pytorch.org/whl/cu116"
+verify_ssl = true
+name = "downloadpytorch"
+
+[packages]
+build = ">=0.4.0"
+numpy = "*"
+opencv-python = "*"
+pillow = ">=8.2.0"
+scikit-image = "*"
+scipy = "*"
+pyyaml = "*"
+tqdm = "*"
+attrdict = "*"
+h5py = "*"
+matplotlib = "*"
+seaborn = "*"
+brewer2mpl = "*"
+tensorboard = "*"
+tensorboardx = "*"
+opencv-contrib-python = "*"
+scikit-learn = "*"
+shapely = "*"
+jupyter = "*"
+bresenham = "*"
+pyvista = "*"
+omegaconf = "*"
+rtree = "*"
+plyfile = "*"
+pathlib = "*"
+open3d = "==0.16.0"
+imagesize = "*"
+einops = "*"
+ninja = "*"
+yacs = "*"
+python-json-logger = "*"
+limap = {file = "limap", editable = true}
+pytlbd = {file = "limap/third-party/pytlbd", "editable" = true}
+torch = { index = "downloadpytorch"}
+torchvision = { index = "downloadpytorch"}
+hloc = {file = "limap/third-party/Hierarchical-Localization", editable = true}
+pytest = "*"
+pytest-assume = "*"
+ipympl = "*"
+ipykernel = "*"
+doit = "*"
+rerun-sdk = "*"
+pytlsd = {file = "limap/third-party/pytlsd", editable = true}
+
+[dev-packages]
+
+[requires]
+python_version = "3.9"
+python_full_version = "3.9.19"
