@@ -167,3 +167,4 @@ Pipfile.lock
 datasets/
 
 tmp/
+outputs/
