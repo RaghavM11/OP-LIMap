@@ -33,7 +33,7 @@ from limap_extension.constants import DATASET_DIR
 #read all 100 mask using PIL and convert to numpy array
 def mask_to_array():
     mask_arrays = []
-    directory_path = DATASET_DIR / "carwelding" / "Hard" / "P001" / "dynamic_obj_masks_left" / "flow_xyz_method"
+    directory_path = DATASET_DIR / "carwelding" / "Hard" / "P001" / "dynamic_obj_masks_left" / "flow_xyz_method" / "pred"
     # directory_path="/carwelding_Hard_P001_with_flow_masks-002/carwelding/Hard/P001/dynamic_obj_masks_left/flow_xyz_method"
     for filename in os.listdir(directory_path):
         if filename.endswith(".png"):  # Assuming the masks are PNG files
@@ -42,10 +42,11 @@ def mask_to_array():
             # Open the image file using PIL
             img = Image.open(full_path)
             # Convert the image to a numpy array
-            mask_array = np.array(img)
+            mask_array = np.array(img, dtype=bool)
             # Append the mask array to the list
             mask_arrays.append(mask_array)
-    return np.array(mask_arrays)
+    print("WARNING: Only returning the first 30 masks")
+    return np.array(mask_arrays)[:30, ...]
 
 
 def read_calc_fake_sfm_data(cfg: Dict):
@@ -67,6 +68,8 @@ def read_calc_fake_sfm_data(cfg: Dict):
         img_idxs.append(img_idx)
     img_idxs.sort()
 
+    img_idxs = img_idxs[:30]
+
     n_neighbors = cfg["n_neighbors"]
     neighbors = dict()
     for img_idx in img_idxs:
@@ -82,13 +85,13 @@ def read_calc_fake_sfm_data(cfg: Dict):
     # - We should be able to get this just from the sequence of images, e.g. if K is 3, then
     #   image 1 has neighbors [2, 3], image 2 has neighbors [1, 3], and image 3 has neighbors [1,
     #   2].
-    neighbors = dict()
+    # neighbors = dict()
 
     # Ranges is a tuple of numpy arrays indicating the bounding box of the scene.
     # TODO: Calculate this from the poses and a buffer.
     # - If we want to get fancy, we could try to use the depth information to do this for us but I'd
     #   rather not do that.
-    ranges = (np.array([0, 0, 0]), np.array([1, 1, 1]))
+    ranges = (np.ones(3) * -1e2, np.ones(3) * 1e2)
 
     return neighbors, ranges
 
@@ -164,24 +167,37 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     masks = mask_to_array()
     # N is the number of frames
     N = masks.shape[0]  # dummy need to change
-    for i in range(1, N):
+    for i in range(0, N):
         mask = masks[i]
         # fing dynamic object pixels in the mask and remove them from the 2d segments
         # dynamic object pixels are denotes as 1's in the mask
-        segment = all_2d_segs[i]
+        segment = np.round(all_2d_segs[i]).astype(int)
+        # print("Segment shape prior to pruning:", segment.shape)
         # find the dynamic object pixels
-        dynamic_object_pixels = np.where(mask == 1)
-        for pixel in dynamic_object_pixels:
-            x, y = pixel
+        dynamic_object_pixels = np.stack(np.where(mask))
+        # print("Dynamic_object_pixels shape:", dynamic_object_pixels.shape)
+        if np.prod(dynamic_object_pixels.shape) == 0:
+            continue
+
+        # for pixel in range(dynamic_object_pixels[0].shape[0]):
+        for idx in range(dynamic_object_pixels.shape[1]):
+            x = dynamic_object_pixels[0, idx]
+            y = dynamic_object_pixels[1, idx]
+
             x1 = segment[:, 0]
             y1 = segment[:, 1]
             x2 = segment[:, 2]
             y2 = segment[:, 3]
 
-            match_x1 = np.where(x1 == x)
-            match_x2 = np.where(x2 == x)
-            match_y1 = np.where(y1 == y)
-            match_y2 = np.where(y2 == y)
+            match_x1 = np.stack(np.where(x1 == x))[0, :]
+            match_x2 = np.stack(np.where(x2 == x))[0, :]
+            match_y1 = np.stack(np.where(y1 == y))[0, :]
+            match_y2 = np.stack(np.where(y2 == y))[0, :]
+
+            # print("match_x1 shape:", match_x1.shape)
+            # print("match_x2 shape:", match_x2.shape)
+            # print("match_y1 shape:", match_y1.shape)
+            # print("match_y2 shape:", match_y2.shape)
 
             match1 = np.intersect1d(match_x1, match_y1)
             match2 = np.intersect1d(match_x2, match_y2)
@@ -190,7 +206,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
             # remove the matching segments
             for idx in matching_segments:
                 segment = np.delete(segment, idx, axis=0)
-
+        # print("Segment shape after to pruning:", segment.shape)
         all_2d_segs[i] = segment
         # remove the dynamic object pixels from the 2d segments
         # for pixel in dynamic_object_pixels:

@@ -45,11 +45,11 @@ DIFFICULTY = "Hard"
 TRIAL = "P001"
 TRIAL_PATH = DATASET_DIR / SCENARIO / DIFFICULTY / TRIAL
 
-import Hypersim
+# import Hypersim
 
-HYPERSIM_LOADER_PATH = REPO_DIR / "limap" / "runners" / "hypersim"
-sys.path.append(HYPERSIM_LOADER_PATH.as_posix())
-from loader import read_scene_hypersim
+# HYPERSIM_LOADER_PATH = REPO_DIR / "limap" / "runners" / "hypersim"
+# sys.path.append(HYPERSIM_LOADER_PATH.as_posix())
+# from loader import read_scene_hypersim
 
 
 def run_scene_hypersim(cfg, dataset, scene_id, cam_id=0):
@@ -69,7 +69,8 @@ def rub_scene_tartanair_pruning(cfg, cam_id=0):
 
     cameras, camimages = {}, {}
     cameras[0] = _base.Camera("SIMPLE_PINHOLE", K, cam_id=0, hw=img_hw)
-    for image_id in range(len(images)):
+    print("Warning: Only using first 30 images")
+    for image_id in range(len(images[:30])):
         pose = _base.CameraPose(cam_ext[image_id][:3, :3], cam_ext[image_id][:3, 3])
         imname = image_name[image_id]
         camimage = _base.CameraImage(0, pose, image_name=imname)
@@ -143,11 +144,11 @@ def main():
     # return
     # TODO: It's up to group members to decide if we need to/want to run HyperSim or instead fake
     # the run with our ground truth information.
-    dataset = Hypersim(cfg["data_dir"])
-    run_scene_hypersim(cfg, dataset, cfg["scene_id"], cam_id=cfg["cam_id"])
+    # dataset = Hypersim(cfg["data_dir"])
+    # run_scene_hypersim(cfg, dataset, cfg["scene_id"], cam_id=cfg["cam_id"])
     # LIMAP_DIR = REPO_DIR / "limap"
     # LIMAP_DIR.cwd()
-    # rub_scene_tartanair_pruning(cfg, cam_id=0)
+    rub_scene_tartanair_pruning(cfg, cam_id=0)
 
 
 if __name__ == '__main__':
