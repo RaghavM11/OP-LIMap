@@ -168,3 +168,9 @@ datasets/
 
 tmp/
 outputs/
+
+# doit is the package Dylan uses for batched preprocessing. It creates databases and such that
+# should be ignored
+.doit.*
+cached_jobs/
+doit_tab_completion.env
