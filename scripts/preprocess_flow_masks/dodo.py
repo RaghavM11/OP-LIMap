@@ -3,7 +3,6 @@ import sys
 from typing import Dict, Optional, List, Any
 from dataclasses import dataclass, asdict
 from copy import deepcopy
-import pickle as pkl
 import hashlib
 
 import numpy as np
@@ -28,6 +27,10 @@ CACHED_JOBS_DIR = ROOT_DIR / "cached_jobs"
 CACHED_JOBS_DIR.mkdir(exist_ok=True, parents=True)
 
 
+def frame_idx_to_str(frame_idx: int) -> str:
+    return f"{frame_idx:06d}"
+
+
 @dataclass(frozen=True, eq=True)
 class Job:
     scenario: str
@@ -40,10 +43,14 @@ class Job:
 
     @staticmethod
     def from_cfg_dict(cfg: Dict) -> 'Job':
-        trial_path = DATASET_DIR / cfg["scenario"] / cfg["difficulty"] / cfg["trial"]
+        kwargs = {}
+        if "trial_path" not in cfg:
+            kwargs["trial_path"] = DATASET_DIR / cfg["scenario"] / cfg["difficulty"] / cfg["trial"]
+
+        # This modifies the original config dict but I won't worry about that now.
         cfg["img_direction"] = (ImageDirection.LEFT
                                 if cfg["img_direction"] == "left" else ImageDirection.RIGHT)
-        return Job(**cfg, trial_path=trial_path)  #, trial_path=trial_path)
+        return Job(**cfg, **kwargs)  #, trial_path=trial_path)
 
     def get_hash(self) -> str:
         serial = self.serialize()
@@ -71,6 +78,7 @@ class Job:
 
         # Convert non-yaml-able members to seralized representation.
         d["img_direction"] = d["img_direction"].value
+        # I think Path objects are yaml-able, but just to be safe.
         d["trial_path"] = d["trial_path"].as_posix()
         return d
 
@@ -78,22 +86,44 @@ class Job:
         # Sort to ensure that the serialized representation is deterministic.
         return str(dict(sorted(self.to_yamlable_dict().items())))
 
+    def get_mask_output_path(self, frame_idx_t: int) -> Path:
+        f_t = frame_idx_to_str(frame_idx_t)
+        name = f"{f_t}_{self.img_direction.value}_mask.png"
+
+        gt_str = "gt" if self.using_ground_truth_flow else "pred"
+        direction_dir = self.trial_path / f"dynamic_obj_masks_{self.img_direction.value}"
+        out_dir = direction_dir / f"{self.method}_method" / gt_str
+
+        return out_dir / name
+
+    def get_max_img_idx(self) -> int:
+        img_gt_dir = self.trial_path / f"image_{self.img_direction.value}"
+        img_idxs = [int(img_path.stem.split("_")[0]) for img_path in img_gt_dir.iterdir()]
+        max_idx = max(img_idxs)
+        return max_idx
+
+    def get_all_mask_targets(self) -> List[Path]:
+        max_idx = self.get_max_img_idx(self.trial_path, self.img_direction)
+        return [self.get_mask_output_path(i) for i in range(max_idx + 1)]
+
 
 class JobList:
 
     def __init__(self, job_dicts: Optional[List[Dict]] = None, job_cfg_path: Path = JOB_CFG_PATH):
         if job_dicts is not None:
             self._job_params: List[Dict] = job_dicts
-        with job_cfg_path.open('r') as f:
-            self._job_params: List[Dict] = yaml.safe_load(f)["jobs"]
+        else:
+            with job_cfg_path.open('r') as f:
+                self._job_params: List[Dict] = yaml.safe_load(f)["jobs"]
 
         self.jobs = [Job.from_cfg_dict(job) for job in self._job_params]
 
     @staticmethod
-    def list_cache_paths():
+    def list_cache_paths() -> List[Path]:
         entries = []
-        for job in CACHED_JOBS_DIR.iterdir():
-            entries.append(job)
+        for job_path in CACHED_JOBS_DIR.iterdir():
+            if job_path.is_file() and job_path.suffix == ".yml":
+                entries.append(job_path)
         return entries
 
     @staticmethod
@@ -103,45 +133,21 @@ class JobList:
         for job in JobList.list_cache_paths():
             with job.open('r') as f:
                 job_dicts.append(yaml.safe_load(f))
-            # with job.open('rb') as f:
-            #     job_dicts.append(pkl.load(f))
         return JobList(job_dicts=job_dicts)
+
+    @staticmethod
+    def clean_cache():
+        for job in JobList.list_cache_paths():
+            job.unlink()
 
     def update_cache(self):
         # If cache loading is slow, could be worth it to turn self into a dictionary of hash-job
-        # pairs and compared that with the list of cache files.
+        # pairs and compare that with the list of cache files.
         cache = JobList.from_cache()
         new_jobs = set(self.jobs) - set(cache.jobs)
         for job in new_jobs:
+            print("Caching job:", job.get_hash())
             job.cache_job()
-
-    # def find_jobs_not_in_other_config(self, other: 'Config'):
-    #     return [job for job in self.jobs if job not in other.jobs]
-
-    # def add_jobs_from_other_config(self, other: 'Config'):
-    #     self.jobs.extend(other.find_jobs_not_in_other_config(self))
-
-    # def is_job_present(self, job: Job):
-    #     return job in self.jobs
-
-
-# def idx_target_file_from_cfg(cfg: JobList) -> Path:
-#     return ROOT_DIR / f"max_image_idx_{cfg.img_direction}.txt"
-
-
-def frame_idx_to_str(frame_idx: int) -> str:
-    return f"{frame_idx:06d}"
-
-
-def get_mask_output_path(cfg: Job, frame_idx_t: int) -> Path:
-    f_t = frame_idx_to_str(frame_idx_t)
-    name = f"{f_t}_{cfg.img_direction.value}_mask.png"
-
-    gt_str = "gt" if cfg.using_ground_truth_flow else "pred"
-    direction_dir = cfg.trial_path / f"dynamic_obj_masks_{cfg.img_direction.value}"
-    out_dir = direction_dir / f"{cfg.method}_method" / gt_str
-
-    return out_dir / name
 
 
 def save_mask(mask: np.ndarray, out_path: Path):
@@ -150,18 +156,11 @@ def save_mask(mask: np.ndarray, out_path: Path):
     mask.save(out_path)
 
 
-def get_max_img_idx(trial_path: Path, img_direction: ImageDirection) -> int:
-    img_gt_dir = trial_path / f"image_{img_direction.value}"
-    img_idxs = [int(img_path.stem.split("_")[0]) for img_path in img_gt_dir.iterdir()]
-    max_idx = max(img_idxs)
-    return max_idx
-
-
 def process_single_frame_pair(job: Job, frame_idx: int, poses: np.ndarray):
     i = frame_idx - 1
     j = frame_idx
 
-    out_path = get_mask_output_path(job, j)
+    out_path = job.get_mask_output_path(j)
 
     (rgb_2, depth_2) = read_rgbd(job.trial_path, job.img_direction, j)
     if frame_idx == 0:
@@ -186,10 +185,11 @@ def process_single_frame_pair(job: Job, frame_idx: int, poses: np.ndarray):
 
 def spawn_job(job: Job):
     job_path = job.get_cache_path()
-    max_idx = get_max_img_idx(job.trial_path, job.img_direction)
+    max_idx = job.get_max_img_idx()
 
-    # Get a dummy mask output path to make that directory.
-    dummy_out_path = get_mask_output_path(job, 0)
+    # Get a dummy mask output path to make that directory. Probably wouldn't impact performance to
+    # not do this and just call mkdir in the loop but I sure love premature optimization.
+    dummy_out_path = job.get_mask_output_path(0)
     dummy_out_path.parent.mkdir(exist_ok=True, parents=True)
 
     def define_single_mask_tasks():
@@ -198,8 +198,7 @@ def spawn_job(job: Job):
         for idx_t in range(max_idx + 1):
             # this doesn't do the actual processing, it just defines the tasks.
             f_t = frame_idx_to_str(idx_t)
-            targets = get_mask_output_path(job, idx_t)
-            # print("targets: ", targets)
+            targets = job.get_mask_output_path(idx_t)
 
             yield {
                 "name": f"process_mask_job_{job.get_hash()}_{f_t}",
@@ -211,59 +210,35 @@ def spawn_job(job: Job):
     yield define_single_mask_tasks()
 
 
-# def task_process_masks():
-
-# def task_run_all():
-#     yield {
-#         "actions": None,
-#         "task_dep": ["cache_cfg", "process_masks"],
-#     }
-
-
-def task_spawn_jobs():
-    # cfg_cache = Config.read_cache()
+def task_preprocess_flow_masks():
     job_list = JobList()
 
     job_list.update_cache()
 
     for job in job_list.jobs:
-        job.cache_job()
         yield spawn_job(job)
 
 
 def task_zip_trials():
 
     def get_zip_target(job: Job):
-        # return DATASET_DIR / f"{job.scenario}_{job.difficulty}_{job.trial}_{job.img_direction.value}_camera_with_flow_masks.zip"
         return DATASET_DIR / f"{job.scenario}_{job.difficulty}_{job.trial}_with_flow_masks.zip"
 
     def zip_trial(job: Job):
         import zipfile
 
-        # out_path = DATASET_DIR /
-        # f"{SCENARIO}_{DIFFICULTY}_{TRIAL}_reprojections_{direction.value}.zip"
         out_path = get_zip_target(job)
-        # in_dir = TRIAL_PATH / f"reproj_{direction.value}"
-
-        # paths_to_zip = targets_from_file_list(direction)
-        # get_mask_output_path(job)
-        # paths_to_zip = [
-        #     get_mask_output_path(job, i)
-        #     for i in range(get_max_img_idx(job.trial_path, job.img_direction) + 1)
-        # ]
         trial_dir = DATASET_DIR / job.scenario / job.difficulty / job.trial
         paths_to_zip = trial_dir.glob("./**/*")
 
         with zipfile.ZipFile(out_path.as_posix(), 'w') as z:
             # Want to write the zip file in a way that is easy to extract, so chop off everything
-            # prior to the scenario.
+            # prior to the dataset. That way, dataset structure if consistent across machines.
             for mask_path in paths_to_zip:
                 arc_name = mask_path.relative_to(DATASET_DIR)
                 z.write(mask_path, arc_name)
 
     for job in JobList().jobs:
-        # file_dep = [TARGET_LIST_RIGHT] if direction == ImageDirection.RIGHT else
-        # [TARGET_LIST_LEFT]
         file_dep = [job.get_cache_path()]
         zip_target = get_zip_target(job)
         yield {
@@ -272,19 +247,3 @@ def task_zip_trials():
             "file_dep": file_dep,
             "targets": [zip_target],
         }
-
-
-if __name__ == "__main__":
-    # img_gt_dir = TRIAL_PATH / "image_right"
-    # img_idxs = [int(img_path.stem.split("_")[0]) for img_path in img_gt_dir.iterdir()]
-    # max_idx = max(img_idxs)
-    # print("max_idx: ", max_idx)
-
-    # # img_name_template = "{idx:06d}_right.png"
-
-    # for i in range(max_idx - 1):
-    #     process_single_frame_pair(ImageDirection.RIGHT, i, None)
-    # #     print(f"img_path: {img_path}")
-
-    # print(targets_from_file_list(ImageDirection.RIGHT))
-    pass
