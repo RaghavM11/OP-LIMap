@@ -223,6 +223,23 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
             for idx in matching_segments:
                 segment = np.delete(segment, idx, axis=0)
         # print("Segment shape after to pruning:", segment.shape)
+        segment = all_2d_segs[i]
+        if (len(idx_list) != 0):
+            idx_list = np.array(idx_list)
+
+            segment= np.delete(segment, idx_list, axis=0)
+            all_2d_segs[i] = segment
+        segment_after_pruning_shape = segment.shape
+
+        print(
+            f"Pruned {segment_orig_shape[0] - segment_after_pruning_shape[0]} segments for img_id: {i}"
+        )
+
+    for i in imagecols.get_img_ids():
+        print(f"({all_2d_segs[i].shape[0]}, {all_2d_segs_orig[i].shape[0]})")
+                
+
+        # print("Segment shape after to pruning:", segment.shape)
         all_2d_segs[i] = segment
         segment_after_pruning_shape = segment.shape
         # remove the dynamic object pixels from the 2d segments
