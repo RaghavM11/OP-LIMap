@@ -171,6 +171,9 @@ datasets/
 tmp/
 outputs/
 data/
+colmap_output/
+precomputed/
+.vscode/
 
 # doit is the package Dylan uses for batched preprocessing. It creates databases and such that
 # should be ignored
