@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Function for checking the CMake version
 verify_cmake_version() {
     echo "Checking CMake version..."

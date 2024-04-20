@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Verify that the directory with which this bash script was executed from is the LIMap-Extension directory
 if [[ "$(basename "$(pwd)")" != "LIMap-Extension" ]]; then
     echo "Please execute this script from the LIMap-Extension directory."
@@ -8,24 +10,28 @@ fi
 
 ./install_scripts/verify_cmake_version.sh
 
-
 echo "Ensuring submodules are up to date..."
 git submodule update --init --recursive
 
-# TODO: Ensure colmap and poselib are installed.
-
-# TODO: Parse apt list --installed to ensure apt dependencies are installed
-# Perhaps by using a Python file that raises an exception if they aren't?
-# apt dependencies:
-# - libhdf5-dev
-# - libopencv-dev
-# - libopencv-contrib-dev
-# - libarpack++2-dev
-# - libarpack2-dev
-# - libsuperlu-dev
-
 # Check that colmap can be found with CMake's find_package macro
-./install_scripts/verify_colmap_install.sh
+./install_scripts/verify_colmap_install.sh COLMAP
+./install_scripts/verify_colmap_install.sh PoseLib
+
+python3 install_scripts/verify_apt_installations.py \
+    libhdf5-dev \
+    libopencv-dev \
+    libopencv-contrib-dev \
+    libarpack++2-dev \
+    libarpack2-dev \
+    libsuperlu-dev \
+    git \
+    curl
+
+echo "Installing asdf..."
+
+
+echo "Installing pipenv..."
+# pip3 install pipenv
 
 # echo "Installing dependencies..."
 
