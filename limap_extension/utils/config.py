@@ -1,9 +1,28 @@
+from pathlib import Path
+
 import yaml
 import numpy as np
 import copy
 
+from limap_extension.constants import REPO_DIR
+
+
+def is_string_likely_path(s, keys) -> bool:
+    is_valid_str = isinstance(s, str) and (s != "null")
+    is_pathy = ("path" in keys) or ("folder" in keys) or ("dir" in keys)
+    return is_valid_str and is_pathy
+
+
+def is_strpath_relative(s):
+    return (not s.startswith('~')) and (not s.startswith('/'))
+
+
 def update_recursive(dict1, dictinfo):
     for k, v in dictinfo.items():
+        if (is_string_likely_path(v, k) and is_strpath_relative(v)):
+            print(
+                "Assuming relative paths in config file are relative to the repository directory!")
+            v = (REPO_DIR / v).as_posix()
         if k not in dict1:
             dict1[k] = dict()
         if isinstance(v, dict):
@@ -11,10 +30,12 @@ def update_recursive(dict1, dictinfo):
         else:
             dict1[k] = v
 
+
 def update_recursive_deepcopy(dict1, dictinfo):
     dict1_copy = copy.deepcopy(dict1)
     update_recursive(dict1_copy, dictinfo)
     return dict1_copy
+
 
 def load_config(config_file, default_path=None):
     with open(config_file, 'r') as f:
@@ -30,7 +51,9 @@ def load_config(config_file, default_path=None):
     update_recursive(cfg, cfg_loaded)
     return cfg
 
+
 def update_config(cfg, unknown, shortcuts):
+
     def get_val_from_keys(cfg, keys):
         v = cfg
         for key in keys:
@@ -54,22 +77,28 @@ def update_config(cfg, unknown, shortcuts):
             # test if it is a store action
             if idx == len(unknown) - 1:
                 v = True
-            elif unknown[idx+1].startswith("--"):
+            elif unknown[idx + 1].startswith("--"):
                 v = True
             else:
-                v = (unknown[idx+1].lower() == 'true')
+                v = (unknown[idx + 1].lower() == 'true')
         else:
-            v = unknown[idx+1]
+            v = unknown[idx + 1]
             if val is not None:
                 if argtype == list:
                     if v.startswith('['):
                         v = eval(v)
                     else:
-                        for i in range(idx+2, len(unknown)):
+                        for i in range(idx + 2, len(unknown)):
                             if unknown[i].startswith('--'):
                                 break
                             v += ',' + unknown[i]
                         v = eval('[' + v + ']')
+                elif (is_string_likely_path(argtype, keys) and (not v.startswith('~'))
+                      and (not v.startswith('/'))):
+                    print(
+                        "Assuming relative paths in config file are relative to the repository directory!"
+                    )
+                    v = (REPO_DIR / v).as_posix()
                 v = argtype(v)
 
         if isinstance(v, str) and (v.lower() == 'none' or v.lower() == 'null'):
@@ -90,4 +119,3 @@ def update_config(cfg, unknown, shortcuts):
         else:
             raise ValueError('number of levels are too high to handle!!')
     return cfg
-
