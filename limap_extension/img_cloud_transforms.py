@@ -20,9 +20,7 @@ def inverse_pose(pose: np.ndarray) -> np.ndarray:
     R = pose[:3, :3]
     t = pose[:3, 3]
     inv_R = R.T
-    # inv_R = np.eye(3)
     inv_t = -inv_R @ t
-    # inv_t = -t
     inv_pose = np.eye(4)
     inv_pose[:3, :3] = inv_R
     inv_pose[:3, 3] = inv_t
@@ -390,8 +388,8 @@ def transform_cloud(cloud: PointCloud, H: np.ndarray) -> PointCloud:
 def reproject_img(
     rgb_1: np.ndarray,
     depth_1: np.ndarray,
-    pose_1_world_ned: np.ndarray,
-    pose_2_world_ned: np.ndarray,
+    pose_1_world: np.ndarray,
+    pose_2_world: np.ndarray,
     interpolation_method: Optional[str] = None
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, BoundingBox]:
     """Reprojects an image from frame 1 to frame 2 using the poses of the two frames."""
@@ -399,8 +397,10 @@ def reproject_img(
     # print("Cloud frame 1 maxes:", np.max(cloud_frame_1.xyz, axis=0))
     # print("Cloud frame 1 mins:", np.min(cloud_frame_1.xyz, axis=0))
 
-    T_cam_1_to_world = H_CAM_TO_NED @ pose_1_world_ned
-    T_cam_2_to_world = H_CAM_TO_NED @ pose_2_world_ned
+    # TODO: The H_CAM_TO_NED left-multiplication is unnecessary as the poses are already in world
+    # frame (not NED).
+    T_cam_1_to_world = H_CAM_TO_NED @ pose_1_world
+    T_cam_2_to_world = H_CAM_TO_NED @ pose_2_world
     T_cam_1_to_cam_2 = inverse_pose(T_cam_2_to_world) @ T_cam_1_to_world
 
     cloud_tformed = transform_cloud(cloud_frame_1, T_cam_1_to_cam_2)
