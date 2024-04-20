@@ -3,9 +3,10 @@ import cv2
 import matplotlib.pyplot as plt
 import os
 
-SEG_DIR = # OS PATHS HERE: '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P007/seg_left/'
-GROUND_TRUTH_DIR = # OS PATHS HERE'/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P007/ground_truth_mask/'
-
+# SEG_DIR = # OS PATHS HERE: '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P007/seg_left/'
+# GROUND_TRUTH_DIR = # OS PATHS HERE'/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P007/ground_truth_mask/'
+SEG_DIR = None 
+GROUND_TRUTH_DIR = None
 def read_seg_mask():
 
     for seg in os.listdir(SEG_DIR):
@@ -25,15 +26,20 @@ def read_dyn_mask():
         dyn_mask = np.load(dyn)
 
 def check_intersection(x1, y1, x2, y2, ix, iy):
+    if x1 == x2:
+        return abs(x1 - ix) < 1e-6
     if min(x1, x2) <= ix <= max(x1, x2) and min(y1, y2) <= iy <= max(y1, y2):
         line_equation = lambda x: (y2 - y1) / (x2 - x1) * (x - x1) + y1
         if abs(line_equation(ix) - iy) < 1e-6:
             return True
     return False
      
-
-read_seg_mask()
-read_dyn_mask()
+x1, y1 = 1, 1
+x2, y2 = 5, 5
+x_point, y_point = 3, 3
+print(check_intersection(x1, y1, x2, y2, x_point, y_point))
+#read_seg_mask()
+#read_dyn_mask()
 
 # def get_2d_lines(img):
 #     """Get 2D lines from an image."""
