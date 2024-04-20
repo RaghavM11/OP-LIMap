@@ -1,6 +1,5 @@
 jobs: [
   {
-    name: 0,
     scenario: carwelding,
     difficulty: Hard,
     trial: P001,
@@ -11,7 +10,6 @@ jobs: [
     using_ground_truth_flow: False
   },
   {
-    name: 1,
     scenario: carwelding,
     difficulty: Hard,
     trial: P002,
@@ -22,7 +20,6 @@ jobs: [
     using_ground_truth_flow: False
   },
   {
-    name: 2,
     scenario: carwelding,
     difficulty: Hard,
     trial: P003,
