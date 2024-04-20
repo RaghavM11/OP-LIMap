@@ -4,6 +4,7 @@ import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 import cv2
+import limap.line2d as line2d
 import limap.base as _base
 import limap.merging as _mrg
 import limap.triangulation as _tri
@@ -178,7 +179,6 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     print("\n\nINSERT LINE PRUNING HERE\n\n")
     # read the masks in from the config file
     # assuming that all the masks from frames 1 - N are stored in masks as a NxHxWx1 matrix
-    #masks = cfg["masks"]
     masks = mask_to_array(cfg, imagecols)
     for i in imagecols.get_img_ids():
         # for img_id in imagecols.get_img_ids():
@@ -274,6 +274,16 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         print("Caching prune segments for img_id: ", img_id)
         limapio.save_txt_segments(output_dir, img_id, all_2d_segs[img_id])
 
+    # And we have to re-extract to get the new descinfo based on pruned segments
+    weight_path = None if "weight_path" not in cfg else cfg["weight_path"]
+    extractor = line2d.get_extractor(cfg["line2d"]["extractor"], weight_path=weight_path)
+    # folder_save = os.path.join(cfg["dir_save"], basedir)
+    se_ext = cfg["skip_exists"] or cfg["line2d"]["extractor"]["skip_exists"]
+    descinfo_folder = extractor.extract_all_images(output_dir,
+                                                   imagecols,
+                                                   all_2d_segs,
+                                                   skip_exists=se_ext)
+
     ##########################################################
     # [C] get line matches
     ##########################################################
@@ -295,35 +305,35 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         Triangulator.InitVPResults(vpresults)
 
     # get 2d bipartites from pointsfm model
-    # if cfg["triangulation"]["use_pointsfm"]["enable"]:
-    #     if cfg["triangulation"]["use_pointsfm"]["colmap_folder"] is None:
-    #         colmap_model_path = None
-    #         # check if colmap model exists from sfminfos computation
-    #         if cfg["triangulation"]["use_pointsfm"][
-    #                 "reuse_sfminfos_colmap"] and sfminfos_colmap_folder is not None:
-    #             colmap_model_path = os.path.join(sfminfos_colmap_folder, "sparse")
-    #             if not _psfm.check_exists_colmap_model(colmap_model_path):
-    #                 colmap_model_path = None
-    #         # retriangulate
-    #         if colmap_model_path is None:
-    #             colmap_output_path = os.path.join(cfg["dir_save"], "colmap_outputs_junctions")
-    #             input_neighbors = None
-    #             if cfg["triangulation"]["use_pointsfm"]["use_neighbors"]:
-    #                 input_neighbors = neighbors
-    #             _psfm.run_colmap_sfm_with_known_poses(cfg["sfm"],
-    #                                                   imagecols,
-    #                                                   output_path=colmap_output_path,
-    #                                                   skip_exists=cfg["skip_exists"],
-    #                                                   neighbors=input_neighbors)
-    #             colmap_model_path = os.path.join(colmap_output_path, "sparse")
-    #     else:
-    #         colmap_model_path = cfg["triangulation"]["use_pointsfm"]["colmap_folder"]
-    #     reconstruction = _psfm.PyReadCOLMAP(colmap_model_path)
-    #     all_bpt2ds, sfm_points = _runners.compute_2d_bipartites_from_colmap(
-    #         reconstruction, imagecols, all_2d_lines, cfg["structures"]["bpt2d"])
-    #     Triangulator.SetBipartites2d(all_bpt2ds)
-    #     if cfg["triangulation"]["use_pointsfm"]["use_triangulated_points"]:
-    #         Triangulator.SetSfMPoints(sfm_points)
+    if cfg["triangulation"]["use_pointsfm"]["enable"]:
+        if cfg["triangulation"]["use_pointsfm"]["colmap_folder"] is None:
+            colmap_model_path = None
+            # check if colmap model exists from sfminfos computation
+            if cfg["triangulation"]["use_pointsfm"][
+                    "reuse_sfminfos_colmap"] and sfminfos_colmap_folder is not None:
+                colmap_model_path = os.path.join(sfminfos_colmap_folder, "sparse")
+                if not _psfm.check_exists_colmap_model(colmap_model_path):
+                    colmap_model_path = None
+            # retriangulate
+            if colmap_model_path is None:
+                colmap_output_path = os.path.join(cfg["dir_save"], "colmap_outputs_junctions")
+                input_neighbors = None
+                if cfg["triangulation"]["use_pointsfm"]["use_neighbors"]:
+                    input_neighbors = neighbors
+                _psfm.run_colmap_sfm_with_known_poses(cfg["sfm"],
+                                                      imagecols,
+                                                      output_path=colmap_output_path,
+                                                      skip_exists=cfg["skip_exists"],
+                                                      neighbors=input_neighbors)
+                colmap_model_path = os.path.join(colmap_output_path, "sparse")
+        else:
+            colmap_model_path = cfg["triangulation"]["use_pointsfm"]["colmap_folder"]
+        reconstruction = _psfm.PyReadCOLMAP(colmap_model_path)
+        all_bpt2ds, sfm_points = _runners.compute_2d_bipartites_from_colmap(
+            reconstruction, imagecols, all_2d_lines, cfg["structures"]["bpt2d"])
+        Triangulator.SetBipartites2d(all_bpt2ds)
+        if cfg["triangulation"]["use_pointsfm"]["use_triangulated_points"]:
+            Triangulator.SetSfMPoints(sfm_points)
 
     # triangulate
     print('Start multi-view triangulation...')
@@ -400,8 +410,8 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
                                           validtracks[track_id],
                                           prefix="track.{0}".format(track_id))
 
-        import pdb
-        pdb.set_trace()
+        # import pdb
+        # pdb.set_trace()
         VisTrack.vis_reconstruction(imagecols, n_visible_views=cfg["n_visible_views"], width=2)
-        pdb.set_trace()
+        # pdb.set_trace()
     return linetracks
