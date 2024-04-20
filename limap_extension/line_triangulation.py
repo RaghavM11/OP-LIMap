@@ -192,6 +192,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         dynamic_object_pixels = np.stack(np.where(mask))
         print("dynamic_object_pixels shape:", dynamic_object_pixels.shape)
         # print("Dynamic_object_pixels shape:", dynamic_object_pixels.shape)
+        idx_list = []
         if np.prod(dynamic_object_pixels.shape) == 0:
             continue
 
@@ -221,13 +222,14 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
             matching_segments = np.union1d(match1, match2)
             # remove the matching segments
             for idx in matching_segments:
-                segment = np.delete(segment, idx, axis=0)
+                # segment = np.delete(segment, idx, axis=0)
+                idx_list.append(idx)
         # print("Segment shape after to pruning:", segment.shape)
         segment = all_2d_segs[i]
         if (len(idx_list) != 0):
             idx_list = np.array(idx_list)
 
-            segment= np.delete(segment, idx_list, axis=0)
+            segment = np.delete(segment, idx_list, axis=0)
             all_2d_segs[i] = segment
         segment_after_pruning_shape = segment.shape
 
@@ -237,7 +239,6 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
 
     for i in imagecols.get_img_ids():
         print(f"({all_2d_segs[i].shape[0]}, {all_2d_segs_orig[i].shape[0]})")
-                
 
         # print("Segment shape after to pruning:", segment.shape)
         all_2d_segs[i] = segment
