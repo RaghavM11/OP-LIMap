@@ -57,6 +57,7 @@ def flow_xyz_from_decomposed_motion(flow_up: np.ndarray, depth_1_cropped: np.nda
 
 
 def segment_flow_xyz(flow_xyz: np.ndarray, threshold: float = 0.4):
+    print("WARNING: Flow segmentation should use a *velocity* threshold, not positional.")
     flow_mag = np.linalg.norm(flow_xyz, axis=-1)
     flow_mask = flow_mag > threshold
 
