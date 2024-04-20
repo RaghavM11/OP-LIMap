@@ -103,6 +103,9 @@ def motion_segmentation(rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarra
     mask[:, :, 0] = angle
     mask[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
     mask_rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2RGB)
+
+    mask[:, :, 0] = 0
+    mask_rgb_no_angle = cv2.cvtColor(mask, cv2.COLOR_HSV2RGB)
     # viz_color = flow.visualize(flow_up)
     # # now create a mask for the flow magnitude
     # flow_mag = np.linalg.norm(flow_up[0].cpu().numpy(), axis=0)
@@ -110,8 +113,25 @@ def motion_segmentation(rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarra
     # # threshold the flow magnitude
     # print(np.max(flow_mag), np.min(flow_mag), np.mean(flow_mag))
     # plt.figure()
-    # plt.imshow(mask_rgb)
+    # plt.imshow(viz_color)
     # plt.show()
+    fig, axs = plt.subplots(2, 2)
+    
+    fig.tight_layout(pad=1.5)
+    # Do not show axis 
+    axs[0, 0].axis('off')
+    axs[0, 0].imshow(rgb_1)
+    axs[0, 0].set_title('Frame 1 at time $t$')
+    axs[0, 1].axis('off')
+    axs[0, 1].imshow(rgb_2)
+    axs[0, 1].set_title('Frame 2 at time $t+1$')
+    axs[1, 0].axis('off')
+    axs[1, 0].imshow(mask_rgb_no_angle)
+    axs[1, 0].set_title('Flow magnitude')
+    axs[1, 1].axis('off')
+    axs[1, 1].imshow(mask_rgb)
+    axs[1, 1].set_title('Flow magnitude (RGB)')
+    fig.savefig('motion_segmentation.png', dpi=300)
     return mask_rgb, mask
 
 if __name__ == '__main__':
