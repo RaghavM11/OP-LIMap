@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Don't want to set this because this could fail and still be okay since this script leaves
+# something to be desired.
+# set -e
+
 # Define a function to check if a CMake package can be found
 check_package_with_cmake() {
   local package_name=$1
@@ -16,9 +20,10 @@ check_package_with_cmake() {
   echo "find_package(${package_name} REQUIRED)" >> $cmake_script
 
   # Run cmake script in script mode (-P)
-  # cmake -P $cmake_script > /dev/null 2>&1
-  echo "Cmake script output: $(cmake -P $cmake_script)"
+  cmake -P $cmake_script > /dev/null 2>&1
   local return_code=$?
+  # echo "Cmake script output: $(cmake -P $cmake_script)"
+
 
   # Clean up temporary CMake script
   rm $cmake_script
@@ -39,5 +44,6 @@ check_package_with_cmake() {
 
 # Example usage of the function
 # package_name="SomePackage" # Replace this with the actual package name
-check_package_with_cmake "COLMAP"
+# check_package_with_cmake "COLMAP"
+check_package_with_cmake $1
 
