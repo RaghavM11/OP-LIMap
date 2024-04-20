@@ -1,0 +1,3 @@
+extension_dataset:
+  dataset_path: datasets/carwelding/Hard/P001/
+experiment_name: carwelding_hard_p001
