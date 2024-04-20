@@ -32,7 +32,8 @@ if [[ -z "$(which asdf)" ]]; then
     git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
     echo '. $HOME/.asdf/asdf.sh' >> ~/.bashrc
     echo '. $HOME/.asdf/completions/asdf.bash' >> ~/.bashrc
-    source ~/.bashrc
+    . $HOME/.asdf/asdf.sh
+    . $HOME/.asdf/completions/asdf.bash
     asdf plugin add python
 else
     echo "asdf already installed."
@@ -48,10 +49,7 @@ fi
 echo "Installing dependencies (ASSUMING CUDA 11.6 CAPABLE GPU)..."
 echo "    Installation should work without GPU support, but it is untested."
 echo "    You will need to edit the Pipfile to switch to CPU -based torch and torchvision index URLs"
-# I could be wrong, but I think the --site-packages flag is necessary to allow the limap build to
-# use the system's OpenCV installation. But I'm also skeptical as we only installed OpenCV
-# libraries, not the Python packages, via apt.
-pipenv install 3.9 --site-packages
+pipenv install --python 3.9
 
 # This is really dissatisfying. I believe the issue is that the limap developers didn't specify a
 # required version of some of the third-party libraries they use, so the latest versions are
