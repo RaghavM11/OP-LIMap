@@ -23,6 +23,15 @@ def read_dyn_mask():
     for dyn in os.listdir(GROUND_TRUTH_DIR):
         dyn = os.path.join(GROUND_TRUTH_DIR, dyn)
         dyn_mask = np.load(dyn)
+
+def check_intersection(x1, y1, x2, y2, ix, iy):
+    if min(x1, x2) <= ix <= max(x1, x2) and min(y1, y2) <= iy <= max(y1, y2):
+        line_equation = lambda x: (y2 - y1) / (x2 - x1) * (x - x1) + y1
+        if abs(line_equation(ix) - iy) < 1e-6:
+            return True
+    return False
+     
+
 read_seg_mask()
 read_dyn_mask()
 
