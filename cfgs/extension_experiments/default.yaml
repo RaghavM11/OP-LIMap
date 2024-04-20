@@ -15,8 +15,10 @@ use_cuda: True
 visualize: False
 max_image_dim: 1600
 skip_exists: False
-output_dir: null
-output_folder: "finaltracks"
+output_dir: outputs
+# dir_save: outputs
+# output_folder: finaltracks
+experiment_name: null
 load_dir: null
 dir_load: null
 n_jobs: -1 # for undistortion
@@ -27,11 +29,11 @@ undistortion_output_dir: "undistorted_images"
 extension_dataset:
     # Based on the dataset path, we'll output to OUTPUT_ROOT/path_relative_to_dataset_directory
     # path_to_repo: /home/mr/Desktop/Navarch 568/Project/LIMap-Extension/
-    path_to_repo: /home/dcolli23/code/LIMap-Extension/
+    # path_to_repo: /home/dcolli23/code/LIMap-Extension/
     # Example: /home/dcolli23/code/
     # dataset_path: /home/mr/Desktop/Navarch
     # 568/Project/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks-002/
-    dataset_path: /home/dcolli23/code/LIMap-Extension/datasets/carwelding/Hard/P004/
+    dataset_path: datasets/carwelding/Hard/P004/
     # scene_id: null
     # cam_id: left  # Can be "left", "right", or "both"
     pruning_dynamic_objects: true
@@ -40,7 +42,7 @@ extension_dataset:
 ##############################
 # sfm config
 sfm:
-    colmap_output_path: "/home/dcolli23/code/LIMap-Extension/colmap_outputs"
+    colmap_output_path: colmap_outputs
     reuse: False
     min_triangulation_angle: 1.0
     neighbor_type: "dice" # ["overlap", "iou", "dice"]
@@ -136,7 +138,7 @@ triangulation:
         min_num_supports: 10
     use_pointsfm:
         enable: false
-        colmap_folder: "/home/dcolli23/code/LIMap-Extension/colmap_outputs"
+        colmap_folder: "colmap_outputs"
         reuse_sfminfos_colmap: true
         use_triangulated_points: true
         use_neighbors: true

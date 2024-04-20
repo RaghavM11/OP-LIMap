@@ -140,8 +140,9 @@ def parse_config():
         # cfg["folder_to_load"] = os.path.join("precomputed", "hypersim", cfg["scene_id"])
         folder_to_load_base = REPO_DIR / "precomputed" / "limap_extension"
         folder_to_load_base.mkdir(parents=True, exist_ok=True)
-        folder_to_load = folder_to_load_base / Path(
-            cfg["extension_dataset"]["dataset_path"]).relative_to(constants.DATASET_DIR)
+        experiment_source = Path(cfg["extension_dataset"]["dataset_path"]).relative_to(
+            constants.DATASET_DIR)
+        folder_to_load = folder_to_load_base / experiment_source
         cfg["folder_to_load"] = folder_to_load.as_posix()
     return cfg
 

@@ -42,10 +42,8 @@ def mask_to_array(cfg: Dict, imgcols):
                                 f"{idx:06d}_{cfg['extension_dataset']['cam_id']}_mask.png")
         print("mask filename:", filename)
         if filename.endswith(".png"):  # Assuming the masks are PNG files
-            # Construct the full path to the image file
-            full_path = os.path.join(directory_path, filename)
             # Open the image file using PIL
-            img = Image.open(full_path)
+            img = Image.open(filename)
             # Convert the image to a numpy array
             mask_array = np.array(img, dtype=bool)
             # Append the mask array to the list
@@ -121,6 +119,8 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         list[:class:`limap.base.LineTrack`]: list of output 3D line tracks
     '''
     print("[LOG] Number of images: {0}".format(imagecols.NumImages()))
+    cfg["output_dir"] = os.path.join(cfg["output_dir"], cfg["experiment_name"])
+    cfg["output_folder"] = os.path.join(cfg["output_dir"], "finaltracks")
     cfg = _runners.setup(cfg)
     detector_name = cfg["line2d"]["detector"]["method"]
     if cfg["triangulation"]["var2d"] == -1:
