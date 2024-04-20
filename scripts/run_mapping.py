@@ -6,6 +6,7 @@ File based on limap/runners/hypersim/triangulation.py"""
 import sys
 import os
 from pathlib import Path
+from typing import Dict
 
 # Handle all of the path manipulation to find LIMAP modules.
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -25,6 +26,7 @@ from limap_extension import constants
 from limap_extension.utils.io import read_all_rgbd, read_pose
 from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 from limap_extension.line_triangulation import line_triangulation
+# from limap_extension.img_cloud_transforms import cam2ned_single_pose, inverse_pose
 
 # from limap_extension.line_triangulation import line_triangulation
 
@@ -40,11 +42,6 @@ DEFAULT_CONFIG_PATH = REPO_DIR / "cfgs" / "triangulation" / "extension_testing_p
 # I believe this is the config file that defines the base configuration. Any values specified in the
 # "--config-file" argument will override the values in this configuration when running LIMAP.
 DEFAULT_BASE_CONFIG_PATH = REPO_DIR / "cfgs" / "default.yaml"
-DATASET_DIR = REPO_DIR / "datasets"
-# SCENARIO = "carwelding"
-# DIFFICULTY = "Hard"
-# TRIAL = "P001"
-# TRIAL_PATH = DATASET_DIR / SCENARIO / DIFFICULTY / TRIAL
 
 # import Hypersim
 
@@ -53,32 +50,38 @@ DATASET_DIR = REPO_DIR / "datasets"
 # from loader import read_scene_hypersim
 
 
-def run_scene_hypersim(cfg, dataset, scene_id, cam_id=0):
-    imagecols = read_scene_hypersim(cfg, dataset, scene_id, cam_id=cam_id, load_depth=False)
-    linetracks = limap.runners.line_triangulation(cfg, imagecols)
-    return linetracks
-
-
-def rub_scene_tartanair_pruning(cfg, cam_id=0):
+def cfg_to_image_collection(cfg: Dict):
     K = constants.CAM_INTRINSIC.astype(np.float32)
     img_hw = [480, 640]
-    print("REPLACE WITH CONFIG TRIAL PATH")
     images, image_name, _, _ = read_all_rgbd(cfg["extension_dataset"]["dataset_path"],
                                              constants.ImageDirection.LEFT)
     cam_pose = read_pose(cfg["extension_dataset"]["dataset_path"], constants.ImageDirection.LEFT)
     cam_ext = []
-    for pose in cam_pose:
-        cam_ext.append(get_transform_matrix_from_pose_array(pose))
+    for pose_cam_in_world_frame in cam_pose:
+        # Is this true? The pose returned from read_pose is in world coordinate frame, which differs
+        # from the camera coordinate frame that the intrinsic expects. To fix this, we need to
+        # convert the world pose into the world pose in NED frame.
+        # constants.H_CAM_TO_NED
+        # pose_world = get_transform_matrix_from_pose_array(pose)
+        # pose_cam_in_world_ned_frame = cam2ned_single_pose(pose_cam_in_world_frame)
+        # cam_ext.append(pose_cam_in_world_ned_frame @ inverse_pose(constants.H_CAM_TO_NED))
+        cam_ext.append(get_transform_matrix_from_pose_array(pose_cam_in_world_frame))
 
     cameras, camimages = {}, {}
     cameras[0] = _base.Camera("SIMPLE_PINHOLE", K, cam_id=0, hw=img_hw)
     print("Warning: Only using first 30 images")
     for image_id in range(len(images[:30])):
-        pose = _base.CameraPose(cam_ext[image_id][:3, :3], cam_ext[image_id][:3, 3])
+        pose_cam_in_world_frame = _base.CameraPose(cam_ext[image_id][:3, :3], cam_ext[image_id][:3,
+                                                                                                3])
         imname = image_name[image_id]
-        camimage = _base.CameraImage(0, pose, image_name=imname)
+        camimage = _base.CameraImage(0, pose_cam_in_world_frame, image_name=imname)
         camimages[image_id] = camimage
     imagecols = _base.ImageCollection(cameras, camimages)
+    return imagecols
+
+
+def rub_scene_tartanair_pruning(cfg, cam_id=0):
+    imagecols = cfg_to_image_collection(cfg)
     linetracks = line_triangulation(cfg, imagecols)
     return linetracks
 
@@ -125,10 +128,7 @@ def parse_config():
 
     args, unknown = arg_parser.parse_known_args()
 
-    print("parsing")
     cfg = cfgutils.load_config(args.config_file, default_path=args.default_config_file)
-    print("Done parsing")
-    print("cfg:", cfg)
 
     shortcuts = dict()
     shortcuts['-nv'] = '--n_visible_views'
@@ -141,7 +141,7 @@ def parse_config():
         folder_to_load_base = REPO_DIR / "precomputed" / "limap_extension"
         folder_to_load_base.mkdir(parents=True, exist_ok=True)
         folder_to_load = folder_to_load_base / Path(
-            cfg["extension_dataset"]["dataset_path"]).relative_to(DATASET_DIR)
+            cfg["extension_dataset"]["dataset_path"]).relative_to(constants.DATASET_DIR)
         cfg["folder_to_load"] = folder_to_load.as_posix()
     return cfg
 
@@ -150,8 +150,8 @@ def main():
     cfg = parse_config()
     # print(cfg)
     # return
-    # TODO: It's up to group members to decide if we need to/want to run HyperSim or instead fake
-    # the run with our ground truth information.
+    # TODO: Need to create an easy method of running LI-MAP both with and without the optical flow
+    # pruning.
     # dataset = Hypersim(cfg["data_dir"])
     # run_scene_hypersim(cfg, dataset, cfg["scene_id"], cam_id=cfg["cam_id"])
     # LIMAP_DIR = REPO_DIR / "limap"
