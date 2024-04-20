@@ -39,9 +39,19 @@ else
 fi
 
 echo "Installing pipenv..."
-# pip3 install pipenv
+if [[ -z "$(which pipenv)" ]]; then
+    pip3 install pipenv --user
+else
+    echo "pipenv already installed."
+fi
 
-# echo "Installing dependencies..."
+echo "Installing dependencies (ASSUMING CUDA 11.6 CAPABLE GPU)..."
+echo "    Installation should work without GPU support, but it is untested."
+echo "    You will need to edit the Pipfile to switch to CPU -based torch and torchvision index URLs"
+# I could be wrong, but I think the --site-packages flag is necessary to allow the limap build to
+# use the system's OpenCV installation. But I'm also skeptical as we only installed OpenCV
+# libraries, not the Python packages, via apt.
+pipenv install 3.9 --site-packages
 
 # This is really dissatisfying. I believe the issue is that the limap developers didn't specify a
 # required version of some of the third-party libraries they use, so the latest versions are
