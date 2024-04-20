@@ -180,3 +180,6 @@ precomputed/
 .doit.*
 cached_jobs/
 doit_tab_completion.env
+
+# Ignoring Pipfile to ensure any changes to it are purposeful
+Pipfile
