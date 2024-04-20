@@ -18,8 +18,6 @@ def get_img_path(trial_path: Path, img_type: ImageType, img_direction: ImageDire
     if isinstance(trial_path, str):
         trial_path = Path(trial_path)
     img_dir = trial_path / f"{img_type.value}_{img_direction.value}"
-    img_name = f"{img_direction.value}.{img_type.value}"
-
     img_name = f"{frame:06d}_{img_direction.value}"
 
     if img_type == ImageType.DEPTH:
