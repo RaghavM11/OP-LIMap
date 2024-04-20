@@ -20,7 +20,7 @@ import numpy as np
 import limap
 import limap_extension as lext
 import limap.base as _base
-import limap.util.config as cfgutils
+import limap_extension.utils.config as cfgutils
 
 from limap_extension import constants
 from limap_extension.utils.io import read_all_rgbd, read_pose
@@ -36,12 +36,12 @@ from limap_extension.line_triangulation import line_triangulation
 # This is the config file that Shlok and Dylan were working on. Based on the original limap
 # triangulation config file but with added info for tartainair/optical flow.
 # DEFAULT_CONFIG_PATH = REPO_DIR / "cfgs" / "default.yaml"
-DEFAULT_CONFIG_PATH = REPO_DIR / "cfgs" / "triangulation" / "extension_testing_pruning.yml"
+DEFAULT_CONFIG_PATH = REPO_DIR / "cfgs" / "extension_experiments" / "extension_testing_pruning.yml"
 # DEFAULT_CONFIG_PATH = REPO_DIR / "cfgs" / "triangulation" / "extension_testing_no_pruning.yml"
 
 # I believe this is the config file that defines the base configuration. Any values specified in the
 # "--config-file" argument will override the values in this configuration when running LIMAP.
-DEFAULT_BASE_CONFIG_PATH = REPO_DIR / "cfgs" / "default.yaml"
+DEFAULT_BASE_CONFIG_PATH = REPO_DIR / "cfgs" / "extension_experiments" / "default.yaml"
 
 # import Hypersim
 
@@ -70,7 +70,7 @@ def cfg_to_image_collection(cfg: Dict):
     cameras, camimages = {}, {}
     cameras[0] = _base.Camera("SIMPLE_PINHOLE", K, cam_id=0, hw=img_hw)
     print("Warning: Only using first 30 images")
-    for image_id in range(len(images[:30])):
+    for image_id in range(len(images)):
         pose_cam_in_world_frame = _base.CameraPose(cam_ext[image_id][:3, :3], cam_ext[image_id][:3,
                                                                                                 3])
         imname = image_name[image_id]
