@@ -32,6 +32,12 @@ verify_cmake_version() {
     fi
 }
 
+# Verify that the directory with which this bash script was executed from is the LIMap-Extension directory
+if [[ "$(basename "$(pwd)")" != "LIMap-Extension" ]]; then
+    echo "Please execute this script from the LIMap-Extension directory."
+    exit 1
+fi
+
 echo "Ensuring submodules are up to date..."
 git submodule update --init --recursive
 
