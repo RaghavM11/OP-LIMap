@@ -40,7 +40,6 @@ def mask_to_array(cfg: Dict, imgcols):
     for idx in imgcols.get_img_ids():
         filename = os.path.join(directory_path,
                                 f"{idx:06d}_{cfg['extension_dataset']['cam_id']}_mask.png")
-        print("mask filename:", filename)
         if filename.endswith(".png"):  # Assuming the masks are PNG files
             # Open the image file using PIL
             img = Image.open(filename)
@@ -48,7 +47,6 @@ def mask_to_array(cfg: Dict, imgcols):
             mask_array = np.array(img, dtype=bool)
             # Append the mask array to the list
             mask_arrays.append(mask_array)
-    print("WARNING: Only returning the first 30 masks")
     return np.array(mask_arrays)
 
 
@@ -171,14 +169,11 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     all_2d_segs, descinfo_folder = _runners.compute_2d_segs(cfg,
                                                             imagecols,
                                                             compute_descinfo=compute_descinfo)
-    print("Descinfo folder:", descinfo_folder)
 
     from copy import deepcopy
     all_2d_segs_orig = deepcopy(all_2d_segs)
 
-    print("\n\nINSERT LINE PRUNING HERE\n\n")
     # read the masks in from the config file
-    # assuming that all the masks from frames 1 - N are stored in masks as a NxHxWx1 matrix
     masks = mask_to_array(cfg, imagecols)
     for i in imagecols.get_img_ids():
         # for img_id in imagecols.get_img_ids():
@@ -190,7 +185,6 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         # print("Segment shape prior to pruning:", segment.shape)
         # find the dynamic object pixels
         dynamic_object_pixels = np.stack(np.where(mask))
-        print("dynamic_object_pixels shape:", dynamic_object_pixels.shape)
         # print("Dynamic_object_pixels shape:", dynamic_object_pixels.shape)
         idx_list = []
         if np.prod(dynamic_object_pixels.shape) == 0:
@@ -233,12 +227,12 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
             all_2d_segs[i] = segment
         segment_after_pruning_shape = segment.shape
 
-        print(
-            f"Pruned {segment_orig_shape[0] - segment_after_pruning_shape[0]} segments for img_id: {i}"
-        )
+        # print(
+        #     f"Pruned {segment_orig_shape[0] - segment_after_pruning_shape[0]} segments for img_id: {i}"
+        # )
 
     for i in imagecols.get_img_ids():
-        print(f"({all_2d_segs[i].shape[0]}, {all_2d_segs_orig[i].shape[0]})")
+        # print(f"({all_2d_segs[i].shape[0]}, {all_2d_segs_orig[i].shape[0]})")
 
         # print("Segment shape after to pruning:", segment.shape)
         all_2d_segs[i] = segment
@@ -262,12 +256,12 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         #     for idx in matching_segments:
         #         segment = np.delete(segment, idx, axis=0)
 
-        print(
-            f"Pruned {segment_orig_shape[0] - segment_after_pruning_shape[0]} segments for img_id: {i}"
-        )
+        # print(
+        #     f"Pruned {segment_orig_shape[0] - segment_after_pruning_shape[0]} segments for img_id: {i}"
+        # )
 
-    for i in imagecols.get_img_ids():
-        print(f"({all_2d_segs[i].shape[0]}, {all_2d_segs_orig[i].shape[0]})")
+    # for i in imagecols.get_img_ids():
+    #     print(f"({all_2d_segs[i].shape[0]}, {all_2d_segs_orig[i].shape[0]})")
 
     # All 2d segs is likely an iterable where each item somehow indicates a line in the image
     # (likely (pt_1, pt_2)).
@@ -289,7 +283,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     output_dir = os.path.join(cfg["output_dir"], "line_detections",
                               cfg["line2d"]["detector"]["method"])
     for img_id in imagecols.get_img_ids():
-        print("Caching prune segments for img_id: ", img_id)
+        # print("Caching prune segments for img_id: ", img_id)
         limapio.save_txt_segments(output_dir, img_id, all_2d_segs[img_id])
 
     # And we have to re-extract to get the new descinfo based on pruned segments
@@ -360,7 +354,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
             Triangulator.TriangulateImageExhaustiveMatch(img_id, neighbors[img_id])
         else:
             matches = limapio.read_npy(os.path.join(matches_dir, f"matches_{img_id}.npy")).item()
-            print("matches:", matches)
+            # print("matches:", matches)
             Triangulator.TriangulateImage(img_id, matches)
     linetracks = Triangulator.ComputeLineTracks()
 

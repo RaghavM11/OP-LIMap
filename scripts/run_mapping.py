@@ -69,7 +69,6 @@ def cfg_to_image_collection(cfg: Dict):
 
     cameras, camimages = {}, {}
     cameras[0] = _base.Camera("SIMPLE_PINHOLE", K, cam_id=0, hw=img_hw)
-    print("Warning: Only using first 30 images")
     for image_id in range(len(images)):
         pose_cam_in_world_frame = _base.CameraPose(cam_ext[image_id][:3, :3], cam_ext[image_id][:3,
                                                                                                 3])
