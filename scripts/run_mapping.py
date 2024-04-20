@@ -107,7 +107,7 @@ def run_scene_tartanair(cfg, cam_id=0):
     return linetracks
 
 
-def parse_config():
+def get_argparser():
     import argparse
     arg_parser = argparse.ArgumentParser(description='triangulate 3d lines')
 
@@ -124,8 +124,20 @@ def parse_config():
                             type=str,
                             default=None,
                             help='folder to load precomputed results')
+    return arg_parser
+
+def parse_args(arg_parser):
+    if arg_parser is None:
+        arg_parser = get_argparser()
 
     args, unknown = arg_parser.parse_known_args()
+    return args, unknown
+
+def parse_config(args = None, unknown = None, arg_parser = None):
+    if args is None and unknown is None:
+        if arg_parser is None:
+            arg_parser = get_argparser()
+        args, unknown = parse_args(arg_parser)
 
     cfg = cfgutils.load_config(args.config_file, default_path=args.default_config_file)
 
