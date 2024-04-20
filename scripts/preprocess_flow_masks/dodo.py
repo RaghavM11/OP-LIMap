@@ -1,9 +1,10 @@
 from pathlib import Path
 import sys
-from typing import Dict, Optional, List
-from dataclasses import dataclass
+from typing import Dict, Optional, List, Any
+from dataclasses import dataclass, asdict
 from copy import deepcopy
 import pickle as pkl
+import hashlib
 
 import numpy as np
 from PIL import Image
@@ -26,20 +27,9 @@ JOB_CFG_PATH = ROOT_DIR / "job.yml"
 CACHED_JOBS_DIR = ROOT_DIR / "cached_jobs"
 CACHED_JOBS_DIR.mkdir(exist_ok=True, parents=True)
 
-# @dataclass(frozen=True)
-# class Job:
-#     scenario: str
-#     difficulty: str
-#     trial: str
-#     trial_path: Path
-#     img_direction: ImageDirection
-#     method: str
-#     using_ground_truth_flow: bool
-
 
 @dataclass(frozen=True, eq=True)
 class Job:
-    name: str
     scenario: str
     difficulty: str
     trial: str
@@ -55,69 +45,41 @@ class Job:
                                 if cfg["img_direction"] == "left" else ImageDirection.RIGHT)
         return Job(**cfg, trial_path=trial_path)  #, trial_path=trial_path)
 
+    def get_hash(self) -> str:
+        serial = self.serialize()
+        # I think SHA-256 is hilariously overkill but it's fine.
+        serial_hash = hashlib.sha256(serial.encode()).hexdigest()
+
+        # Truncate the hash to 8 characters.
+        return serial_hash[:8]
+
     def get_cache_path(self) -> Path:
-        return CACHED_JOBS_DIR / f"{self.name}.pkl"
+        return CACHED_JOBS_DIR / f"{self.get_hash()}.yml"
 
     def cache_job(self) -> Path:
         out_path = self.get_cache_path()
         if out_path.exists():
             return out_path
 
-        # with out_path.open('w') as f:
-        #     yaml.dump(vars(self), f)
-        with out_path.open('wb') as f:
-            pkl.dump(self, f)
+        with out_path.open('w') as f:
+            yaml.dump(self.to_yamlable_dict(), f)
+
         return out_path
 
+    def to_yamlable_dict(self) -> Dict[str, Any]:
+        d = deepcopy(asdict(self))
 
-# def job_from_cfg_dict(cfg: Dict) -> Job:
-#     return Job(scenario=cfg["scenario"],
-#                difficulty=cfg["difficulty"],
-#                trial=cfg["trial"],
-#                img_direction=cfg["img_direction"],
-#                method=cfg["method"],
-#                using_ground_truth_flow=cfg["using_ground_truth_flow"])
+        # Convert non-yaml-able members to seralized representation.
+        d["img_direction"] = d["img_direction"].value
+        d["trial_path"] = d["trial_path"].as_posix()
+        return d
 
-# class Job:
-
-#     def __init__(self, job_params: dict):
-#         self._job_params = job_params
-#         self.scenario: str = job_params["scenario"]
-#         self.difficulty: str = job_params["difficulty"]
-#         self.trial: str = job_params["trial"]
-#         self.trial_path: Path = DATASET_DIR / self.scenario / self.difficulty / self.trial
-#         # self.img_direction = ImageDirection[job_params["img_direction"]]
-#         self.img_direction: ImageDirection = self._discern_img_direction(
-#             job_params["img_direction"])
-
-#         # TODO: Make this an enum in the projection based flow stuff
-#         self.method: str = job_params["method"]
-#         self.using_ground_truth_flow: bool = job_params["using_ground_truth_flow"]
-
-#     def cache_job(self) -> Path:
-#         out_path = CACHED_JOBS_DIR / f"{hash(self)}.yml"
-#         with out_path.open('w') as f:
-#             yaml.dump(self._job_params, f)
-#         return out_path
-
-#     def _discern_img_direction(self, img_direction_str: str) -> ImageDirection:
-#         if img_direction_str == "left":
-#             return ImageDirection.LEFT
-#         elif img_direction_str == "right":
-#             return ImageDirection.RIGHT
-#         else:
-#             raise ValueError(
-#                 f"Invalid image direction: {img_direction_str}, expected 'left' or 'right'")
-
-#     def __eq__(self, other):
-#         if not isinstance(other, Job):
-#             return False
-#         return all(self.scenario == other.scenario, self.difficulty == other.difficulty,
-#                    self.trial == other.trial, self.img_direction == other.img_direction,
-#                    self.method == other.method)
+    def serialize(self) -> str:
+        # Sort to ensure that the serialized representation is deterministic.
+        return str(dict(sorted(self.to_yamlable_dict().items())))
 
 
-class Config:
+class JobList:
 
     def __init__(self, job_dicts: Optional[List[Dict]] = None, job_cfg_path: Path = JOB_CFG_PATH):
         if job_dicts is not None:
@@ -135,70 +97,43 @@ class Config:
         return entries
 
     @staticmethod
-    def read_cache():
+    def from_cache():
         # Cache is now a directory that has hashed job configs as files.
         job_dicts = []
-        for job in Config.list_cache_paths():
-            # with job.open('r') as f:
-            #     job_dicts.append(yaml.safe_load(f))
-            with job.open('rb') as f:
-                job_dicts.append(pkl.load(f))
-        return Config(job_dicts=job_dicts)
+        for job in JobList.list_cache_paths():
+            with job.open('r') as f:
+                job_dicts.append(yaml.safe_load(f))
+            # with job.open('rb') as f:
+            #     job_dicts.append(pkl.load(f))
+        return JobList(job_dicts=job_dicts)
 
     def update_cache(self):
-        # try:
-        #     cfg_cache = Config.read_cache()
-        # except (FileNotFoundError, KeyError):
-        #     # Key error is for when the new job config contains a new parameter the old one didn't.
-        #     cfg_cache = Config([])
-
-        # # These should probably be sets instead of lists.
-        # jobs_missing = self.find_jobs_not_in_other_config(cfg_cache)
-        # new_paths = []
-        # for job in jobs_missing:
-        #     new_path = job.cache_job()
-        #     new_paths.append(new_path)
-
-        # return new_paths
-
-        for job in self.jobs:
+        # If cache loading is slow, could be worth it to turn self into a dictionary of hash-job
+        # pairs and compared that with the list of cache files.
+        cache = JobList.from_cache()
+        new_jobs = set(self.jobs) - set(cache.jobs)
+        for job in new_jobs:
             job.cache_job()
 
-    # def __eq__(self, value: object) -> bool:
-    #     if not isinstance(value, Config):
-    #         return False
+    # def find_jobs_not_in_other_config(self, other: 'Config'):
+    #     return [job for job in self.jobs if job not in other.jobs]
 
-    #     return all([job in value.jobs for job in self.jobs])
+    # def add_jobs_from_other_config(self, other: 'Config'):
+    #     self.jobs.extend(other.find_jobs_not_in_other_config(self))
 
-    def find_jobs_not_in_other_config(self, other: 'Config'):
-        return [job for job in self.jobs if job not in other.jobs]
-
-    def is_job_present(self, job: Job):
-        return job in self.jobs
+    # def is_job_present(self, job: Job):
+    #     return job in self.jobs
 
 
-# def task_cache_cfg():
-
-#     def cache_cfg():
-#         cfg = Config()
-#         cfg.cache_cfg()
-
-#     return {
-#         "actions": [(cache_cfg, [])],
-#         "file_dep": [JOB_CFG_PATH],
-#         "targets": [CACHED_JOBS_PATH],
-#     }
-
-
-def idx_target_file_from_cfg(cfg: Config) -> Path:
-    return ROOT_DIR / f"max_image_idx_{cfg.img_direction}.txt"
+# def idx_target_file_from_cfg(cfg: JobList) -> Path:
+#     return ROOT_DIR / f"max_image_idx_{cfg.img_direction}.txt"
 
 
 def frame_idx_to_str(frame_idx: int) -> str:
     return f"{frame_idx:06d}"
 
 
-def get_mask_output_path(cfg: Config, frame_idx_t: int) -> Path:
+def get_mask_output_path(cfg: Job, frame_idx_t: int) -> Path:
     f_t = frame_idx_to_str(frame_idx_t)
     name = f"{f_t}_{cfg.img_direction.value}_mask.png"
 
@@ -222,21 +157,21 @@ def get_max_img_idx(trial_path: Path, img_direction: ImageDirection) -> int:
     return max_idx
 
 
-def process_single_frame_pair(cfg: Config, frame_idx: int, poses: np.ndarray):
+def process_single_frame_pair(job: Job, frame_idx: int, poses: np.ndarray):
     i = frame_idx - 1
     j = frame_idx
 
-    out_path = get_mask_output_path(cfg, j)
+    out_path = get_mask_output_path(job, j)
 
-    (rgb_2, depth_2) = read_rgbd(cfg.trial_path, cfg.img_direction, j)
+    (rgb_2, depth_2) = read_rgbd(job.trial_path, job.img_direction, j)
     if frame_idx == 0:
         # No previous frame to compare to, so we indicate that nothing is dynamic.
         save_mask(np.zeros_like(depth_2), out_path)
         return
 
-    (rgb_1, depth_1) = read_rgbd(cfg.trial_path, cfg.img_direction, i)
+    (rgb_1, depth_1) = read_rgbd(job.trial_path, job.img_direction, i)
 
-    poses = read_pose(cfg.trial_path, cfg.img_direction)
+    poses = read_pose(job.trial_path, job.img_direction)
     pose_1 = get_transform_matrix_from_pose_array(poses[i, :])
     pose_2 = get_transform_matrix_from_pose_array(poses[j, :])
 
@@ -267,7 +202,7 @@ def spawn_job(job: Job):
             # print("targets: ", targets)
 
             yield {
-                "name": f"process_mask_job_{job.name}_{f_t}",
+                "name": f"process_mask_job_{job.get_hash()}_{f_t}",
                 "actions": [(process_single_frame_pair, [job, idx_t, poses])],
                 "file_dep": [job_path],
                 "targets": [targets],
@@ -287,11 +222,12 @@ def spawn_job(job: Job):
 
 def task_spawn_jobs():
     # cfg_cache = Config.read_cache()
-    cfg = Config()
+    job_list = JobList()
 
-    cfg.update_cache()
+    job_list.update_cache()
 
-    for job in cfg.jobs:
+    for job in job_list.jobs:
+        job.cache_job()
         yield spawn_job(job)
 
 
@@ -325,13 +261,13 @@ def task_zip_trials():
                 arc_name = mask_path.relative_to(DATASET_DIR)
                 z.write(mask_path, arc_name)
 
-    for job in Config().jobs:
+    for job in JobList().jobs:
         # file_dep = [TARGET_LIST_RIGHT] if direction == ImageDirection.RIGHT else
         # [TARGET_LIST_LEFT]
         file_dep = [job.get_cache_path()]
         zip_target = get_zip_target(job)
         yield {
-            "basename": f"zip_trials_{job.name}",
+            "basename": f"zip_trials_{job.get_hash()}",
             "actions": [(zip_trial, [job])],
             "file_dep": file_dep,
             "targets": [zip_target],
