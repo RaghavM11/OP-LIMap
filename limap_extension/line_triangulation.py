@@ -31,11 +31,15 @@ from limap_extension.constants import DATASET_DIR
 
 
 #read all 100 mask using PIL and convert to numpy array
-def mask_to_array():
+def mask_to_array(cfg: Dict, imgcols):
     mask_arrays = []
-    directory_path = DATASET_DIR / "carwelding" / "Hard" / "P001" / "dynamic_obj_masks_left" / "flow_xyz_method" / "pred"
+    directory_path = os.path.join(cfg["extension_dataset"]["dataset_path"],
+                                  "dynamic_obj_masks_left", "flow_xyz_method", "pred")
     # directory_path="/carwelding_Hard_P001_with_flow_masks-002/carwelding/Hard/P001/dynamic_obj_masks_left/flow_xyz_method"
-    for filename in os.listdir(directory_path):
+    for idx in imgcols.get_img_ids():
+        filename = os.path.join(directory_path,
+                                f"{idx:06d}_{cfg['extension_dataset']['cam_id']}_mask.png")
+        print("mask filename:", filename)
         if filename.endswith(".png"):  # Assuming the masks are PNG files
             # Construct the full path to the image file
             full_path = os.path.join(directory_path, filename)
@@ -46,7 +50,7 @@ def mask_to_array():
             # Append the mask array to the list
             mask_arrays.append(mask_array)
     print("WARNING: Only returning the first 30 masks")
-    return np.array(mask_arrays)[:30, ...]
+    return np.array(mask_arrays)
 
 
 def read_calc_fake_sfm_data(cfg: Dict):
@@ -68,17 +72,24 @@ def read_calc_fake_sfm_data(cfg: Dict):
         img_idxs.append(img_idx)
     img_idxs.sort()
 
-    img_idxs = img_idxs[:30]
+    img_idxs = img_idxs
 
     n_neighbors = cfg["n_neighbors"]
     neighbors = dict()
     for img_idx in img_idxs:
         neighbors[img_idx] = []
+        num_neighbors_tot = 0
         for i in range(1, n_neighbors + 1):
             if img_idx - i in img_idxs:
                 neighbors[img_idx].append(img_idx - i)
+                num_neighbors_tot += 1
+                if num_neighbors_tot >= n_neighbors:
+                    break
             if img_idx + i in img_idxs:
                 neighbors[img_idx].append(img_idx + i)
+                num_neighbors_tot += 1
+                if num_neighbors_tot >= n_neighbors:
+                    break
 
     # TODO: Load info from config file and calculate info we'd get from SfM (neighbors, ranges).
     # Neighbors is a dictionary with image_id as key and a list of neighbor image_ids as value.
@@ -132,23 +143,23 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     ##########################################################
     # [A] sfm metainfos (neighbors, ranges)
     ##########################################################
-    # sfminfos_colmap_folder = None
-    # if neighbors is None:
-    #     sfminfos_colmap_folder, neighbors, ranges = _runners.compute_sfminfos(cfg, imagecols)
-    # else:
-    #     limapio.save_txt_metainfos(os.path.join(cfg["dir_save"], "metainfos.txt"), neighbors,
-    #                                ranges)
-    #     neighbors = imagecols.update_neighbors(neighbors)
-    #     for img_id, neighbor in neighbors.items():
-    #         neighbors[img_id] = neighbors[img_id][:cfg["n_neighbors"]]
-    # limapio.save_txt_metainfos(os.path.join(cfg["dir_save"], "metainfos.txt"), neighbors, ranges)
+    sfminfos_colmap_folder = None
+    if neighbors is None:
+        sfminfos_colmap_folder, neighbors, ranges = _runners.compute_sfminfos(cfg, imagecols)
+    else:
+        limapio.save_txt_metainfos(os.path.join(cfg["dir_save"], "metainfos.txt"), neighbors,
+                                   ranges)
+        neighbors = imagecols.update_neighbors(neighbors)
+        for img_id, neighbor in neighbors.items():
+            neighbors[img_id] = neighbors[img_id][:cfg["n_neighbors"]]
+    limapio.save_txt_metainfos(os.path.join(cfg["dir_save"], "metainfos.txt"), neighbors, ranges)
 
-    if neighbors is not None:
-        raise ValueError("neighbors shouldn't be specified. They're calculated in this funciton")
-    if ranges is not None:
-        raise ValueError("ranges shouldn't be specified. They're calculated in this funciton")
+    # if neighbors is not None:
+    #     raise ValueError("neighbors shouldn't be specified. They're calculated in this funciton")
+    # if ranges is not None:
+    #     raise ValueError("ranges shouldn't be specified. They're calculated in this funciton")
 
-    neighbors, ranges = read_calc_fake_sfm_data(cfg)
+    # neighbors, ranges = read_calc_fake_sfm_data(cfg)
 
     ##########################################################
     # [B] get 2D line segments for each image and prune them
@@ -159,22 +170,27 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     all_2d_segs, descinfo_folder = _runners.compute_2d_segs(cfg,
                                                             imagecols,
                                                             compute_descinfo=compute_descinfo)
+    print("Descinfo folder:", descinfo_folder)
+
+    from copy import deepcopy
+    all_2d_segs_orig = deepcopy(all_2d_segs)
 
     print("\n\nINSERT LINE PRUNING HERE\n\n")
     # read the masks in from the config file
     # assuming that all the masks from frames 1 - N are stored in masks as a NxHxWx1 matrix
     #masks = cfg["masks"]
-    masks = mask_to_array()
-    # N is the number of frames
-    N = masks.shape[0]  # dummy need to change
-    for i in range(0, N):
+    masks = mask_to_array(cfg, imagecols)
+    for i in imagecols.get_img_ids():
+        # for img_id in imagecols.get_img_ids():
         mask = masks[i]
         # fing dynamic object pixels in the mask and remove them from the 2d segments
         # dynamic object pixels are denotes as 1's in the mask
         segment = np.round(all_2d_segs[i]).astype(int)
+        segment_orig_shape = segment.shape
         # print("Segment shape prior to pruning:", segment.shape)
         # find the dynamic object pixels
         dynamic_object_pixels = np.stack(np.where(mask))
+        print("dynamic_object_pixels shape:", dynamic_object_pixels.shape)
         # print("Dynamic_object_pixels shape:", dynamic_object_pixels.shape)
         if np.prod(dynamic_object_pixels.shape) == 0:
             continue
@@ -208,6 +224,7 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
                 segment = np.delete(segment, idx, axis=0)
         # print("Segment shape after to pruning:", segment.shape)
         all_2d_segs[i] = segment
+        segment_after_pruning_shape = segment.shape
         # remove the dynamic object pixels from the 2d segments
         # for pixel in dynamic_object_pixels:
         #     x, y = pixel
@@ -227,6 +244,13 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         #     for idx in matching_segments:
         #         segment = np.delete(segment, idx, axis=0)
 
+        print(
+            f"Pruned {segment_orig_shape[0] - segment_after_pruning_shape[0]} segments for img_id: {i}"
+        )
+
+    for i in imagecols.get_img_ids():
+        print(f"({all_2d_segs[i].shape[0]}, {all_2d_segs_orig[i].shape[0]})")
+
     # All 2d segs is likely an iterable where each item somehow indicates a line in the image
     # (likely (pt_1, pt_2)).
     # idxs_to_keep = []
@@ -242,10 +266,13 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
     # for idx in idxs_to_keep:
 
     # And now we overwrite the cache with the pruned lines
-    basedir = os.path.join("line_detections", cfg["line2d"]["detector"]["method"])
-    folder_save = os.path.join(cfg["dir_save"], basedir)
-    for img_id in range(masks.shape[0]):
-        limapio.save_txt_segments(folder_save, img_id, all_2d_segs[img_id])
+    # basedir = os.path.join("line_detections", cfg["line2d"]["detector"]["method"])
+    # folder_save = os.path.join(cfg["dir_save"], basedir)
+    output_dir = os.path.join(cfg["output_dir"], "line_detections",
+                              cfg["line2d"]["detector"]["method"])
+    for img_id in imagecols.get_img_ids():
+        print("Caching prune segments for img_id: ", img_id)
+        limapio.save_txt_segments(output_dir, img_id, all_2d_segs[img_id])
 
     ##########################################################
     # [C] get line matches
@@ -304,8 +331,8 @@ def line_triangulation(cfg, imagecols, neighbors=None, ranges=None):
         if cfg["triangulation"]["use_exhaustive_matcher"]:
             Triangulator.TriangulateImageExhaustiveMatch(img_id, neighbors[img_id])
         else:
-            matches = limapio.read_npy(os.path.join(matches_dir,
-                                                    "matches_{0}.npy".format(img_id))).item()
+            matches = limapio.read_npy(os.path.join(matches_dir, f"matches_{img_id}.npy")).item()
+            print("matches:", matches)
             Triangulator.TriangulateImage(img_id, matches)
     linetracks = Triangulator.ComputeLineTracks()
 

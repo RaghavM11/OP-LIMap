@@ -15,6 +15,8 @@ from limap_extension.constants import ImageType, ImageDirection
 
 
 def get_img_path(trial_path: Path, img_type: ImageType, img_direction: ImageDirection, frame: int):
+    if isinstance(trial_path, str):
+        trial_path = Path(trial_path)
     img_dir = trial_path / f"{img_type.value}_{img_direction.value}"
     img_name = f"{img_direction.value}.{img_type.value}"
 
@@ -35,6 +37,8 @@ def get_img_path(trial_path: Path, img_type: ImageType, img_direction: ImageDire
 def read_img(trial_path: Path, img_type: ImageType, img_direction: ImageDirection,
              frame: int) -> np.array:
     """Reads the image at the given path."""
+    if isinstance(trial_path, str):
+        trial_path = Path(trial_path)
     img_path = get_img_path(trial_path, img_type, img_direction, frame)
 
     if img_type == ImageType.DEPTH:
@@ -50,6 +54,8 @@ def read_img(trial_path: Path, img_type: ImageType, img_direction: ImageDirectio
 
 def read_rgbd(trial_path: Path, img_direction: ImageDirection, frame: int) -> np.array:
     """Reads the RGBD image at the given path."""
+    if isinstance(trial_path, str):
+        trial_path = Path(trial_path)
     img = read_img(trial_path, ImageType.IMAGE, img_direction, frame)
     depth = read_img(trial_path, ImageType.DEPTH, img_direction, frame)
     return img, depth
@@ -59,6 +65,8 @@ def read_all_rgbd(
     trial_path: Path, img_direction: ImageDirection
 ) -> Tuple[List[np.ndarray], List[str], List[np.ndarray], List[str]]:
     # Going to read in poses as a hack to figure out how many images we have.
+    if isinstance(trial_path, str):
+        trial_path = Path(trial_path)
     poses = read_pose(trial_path, img_direction)
     num_images = poses.shape[0]
     rgbs = []
@@ -79,6 +87,8 @@ def read_all_rgbd(
 
 def read_pose(trial_path: Path, img_direction: ImageDirection) -> np.ndarray:
     """Reads the pose at the given path."""
+    if isinstance(trial_path, str):
+        trial_path = Path(trial_path)
     pose_path = trial_path / f"pose_{img_direction.value}.txt"
     pose = np.loadtxt(pose_path)
     return pose

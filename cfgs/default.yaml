@@ -12,12 +12,13 @@ use_tmp: False
 n_visible_views: 4
 n_neighbors: 20
 use_cuda: True
-visualize: True
+visualize: False
 max_image_dim: 1600
 skip_exists: False
-output_dir: /home/dcolli23/code/LIMap-Extension/outputs/triangulation
+output_dir: null
 output_folder: "finaltracks"
 load_dir: null
+dir_load: null
 n_jobs: -1 # for undistortion
 undistortion_output_dir: "undistorted_images"
 
@@ -30,7 +31,7 @@ extension_dataset:
     # Example: /home/dcolli23/code/
     # dataset_path: /home/mr/Desktop/Navarch
     # 568/Project/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks-002/
-    dataset_path: /home/dcolli23/code/LIMap-Extension/datasets/carwelding/Hard/P001/
+    dataset_path: /home/dcolli23/code/LIMap-Extension/datasets/carwelding/Hard/P004/
     # scene_id: null
     # cam_id: left  # Can be "left", "right", or "both"
     pruning_dynamic_objects: true
@@ -39,7 +40,7 @@ extension_dataset:
 ##############################
 # sfm config
 sfm:
-    colmap_output_path: "colmap_outputs"
+    colmap_output_path: "/home/dcolli23/code/LIMap-Extension/colmap_outputs"
     reuse: False
     min_triangulation_angle: 1.0
     neighbor_type: "dice" # ["overlap", "iou", "dice"]
@@ -55,7 +56,7 @@ sfm:
 line2d:
     max_num_2d_segs: 3000
     do_merge_lines: False
-    visualize: True
+    visualize: False
     save_l3dpp: False
     compute_descinfo: False
     detector:
@@ -135,7 +136,7 @@ triangulation:
         min_num_supports: 10
     use_pointsfm:
         enable: false
-        colmap_folder: null
+        colmap_folder: "/home/dcolli23/code/LIMap-Extension/colmap_outputs"
         reuse_sfminfos_colmap: true
         use_triangulated_points: true
         use_neighbors: true
