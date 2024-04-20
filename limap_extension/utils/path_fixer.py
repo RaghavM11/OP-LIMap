@@ -4,6 +4,7 @@ from pathlib import Path
 REPO_DIR = Path(__file__).resolve().parents[2]
 LIMAP_DIR = REPO_DIR / "limap"
 HYPERSIM_DIR = LIMAP_DIR / "runners" / "hypersim"
+HYPERSIM_LOADER_DIR = REPO_DIR / "limap" / "runners" / "hypersim"
 # DEEPLSD_DIR = LIMAP_DIR / "third-party" / "DeepLSD"
 THIRDPARTY_DIR = LIMAP_DIR / "third-party"
 
@@ -14,6 +15,7 @@ def allow_limap_imports():
     # sys.path.append(REPO_DIR.as_posix())
     sys.path.append(LIMAP_DIR.as_posix())
     sys.path.append(HYPERSIM_DIR.as_posix())
+    sys.path.append(HYPERSIM_LOADER_DIR)
     # sys.path.append(DEEPLSD_DIR.as_posix())
 
     for path in THIRDPARTY_DIR.iterdir():
