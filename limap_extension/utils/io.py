@@ -4,6 +4,8 @@ from typing import Tuple, List
 
 import numpy as np
 from PIL import Image
+import cv2
+from scipy.ndimage import binary_dilation
 
 FILE_DIR = Path(__file__).resolve().parent
 sys.path.append(FILE_DIR.as_posix())
@@ -12,6 +14,112 @@ from path_fixer import allow_limap_imports
 allow_limap_imports()
 
 from limap_extension.constants import ImageType, ImageDirection
+
+
+def save_mask(mask: np.ndarray, out_path: Path):
+    mask = mask.astype(np.uint8) * 255
+    mask = Image.fromarray(mask)
+    mask.save(out_path)
+
+
+def save_rgb(rgb: np.ndarray, out_path: Path):
+    if rgb.dtype != np.uint8:
+        raise ValueError("The input image must be of type np.uint8.")
+    rgb = Image.fromarray(rgb)
+    rgb.save(out_path)
+
+
+def scale_flow_viz(flow_viz: np.ndarray, power: float = 3.0) -> np.ndarray:
+    if flow_viz.max() > 1:
+        flow_viz = flow_viz.astype(float) / 255
+    flow_viz = flow_viz**power
+    return np.round(flow_viz * 255).astype(np.uint8)
+
+
+def flow_xyz_to_rgb(flow: 'OpticalFlow', flow_xyz: np.ndarray) -> np.ndarray:
+    flow_mag = np.linalg.norm(flow_xyz, axis=-1)
+    flow_planar = flow_xyz[:, :, :2]
+    flow_planar_mag = np.linalg.norm(flow_planar, axis=-1)
+    flow_planar = flow_planar / flow_planar_mag[..., None]
+    flow_planar = flow_planar * flow_mag[..., None]
+    flow_reproj_rgb = flow.visualize(torch.from_numpy(flow_planar).permute(2, 0, 1).unsqueeze(0))
+
+
+def flow_mag_angle_to_rgb(flow_mag: np.ndarray, flow_angle: np.ndarray) -> np.ndarray:
+    """Converts flow magnitude and angle to an RGB image."""
+    mask = np.zeros((*flow_mag.shape, 3), dtype=np.float32)
+    print("Max flow magnitude: ", np.max(flow_mag))
+    print("Min flow magnitude: ", np.min(flow_mag))
+    print("Max flow angle: ", np.max(flow_angle))
+    print("Min flow angle: ", np.min(flow_angle))
+
+    mask[..., 0] = 0  #flow_angle
+    mask[..., 1] = 255
+    mask[..., 2] = cv2.normalize(flow_mag, None, 0, 255, cv2.NORM_MINMAX)
+    flow_rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2RGB_FULL).astype(float)
+    mask_r = np.mean(flow_rgb[:, :, 0])
+    mask_g = np.mean(flow_rgb[:, :, 1])
+    mask_b = np.mean(flow_rgb[:, :, 2])
+    cov_mask_r = np.std(flow_rgb[:, :, 0])
+    cov_mask_g = np.std(flow_rgb[:, :, 1])
+    cov_mask_b = np.std(flow_rgb[:, :, 2])
+    mask_r = (flow_rgb[:, :, 0] - mask_r) / cov_mask_r
+    mask_g = (flow_rgb[:, :, 1] - mask_g) / cov_mask_g
+    mask_b = (flow_rgb[:, :, 2] - mask_b) / cov_mask_b
+    return np.clip(flow_rgb * 255, 0, 255).astype(np.uint8)
+
+
+def flow_2d_to_rgb_and_mask(flow_up: np.ndarray) -> np.ndarray:
+    """Converts a 2D flow image to an RGB image."""
+    mask = np.zeros((*flow_up.shape[:-1], 3), dtype=np.uint8)
+    mag, angle = cv2.cartToPolar(flow_up[..., 0], flow_up[..., 1], angleInDegrees=True)
+
+    # mask[:, :, 0] = angle
+    # mask[..., 1] = 255
+    # mask[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+    # print(np.mean(mag), np.max(mag), np.min(mag))
+    # flow_rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2RGB).astype(float)
+    # mean = np.mean(flow_rgb, axis=(0, 1), keepdims=True)
+    # std_deviation = np.std(flow_rgb, axis=(0, 1), keepdims=True)
+
+    # # mask_grey = cv2.cvtColor(flow_rgb, cv2.COLOR_RGB2GRAY)
+    # flow_rgb = np.round(((flow_rgb - mean) / std_deviation) * 255).astype(np.uint8)
+
+    # mask_grey = cv2.cvtColor(flow_rgb, cv2.COLOR_RGB2GRAY)
+    # mask_grey = (mask_grey - mean) / std_deviation
+
+    # # do binary dilation on the grey_mask
+    # # mask_grey = binary_dilation(mask_grey, iterations=5)
+    # mask_grey = np.clip(mask_grey, 0, None)
+    # mask_grey[mask_grey > 0.5] = 1
+    # mask_grey = binary_dilation(mask_grey, iterations=5)
+
+    # mask_rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2RGB)
+    mask_rgb = flow_mag_angle_to_rgb(mag, angle)
+    mask_grey = cv2.cvtColor(mask_rgb, cv2.COLOR_RGB2GRAY)
+    mean = np.mean(mask_grey)
+    # # print(mean)
+    std_deviation = np.std(mask_grey)
+    # # print(std_deviation)
+    mask_grey = (mask_grey - mean) / std_deviation
+    # # mask_grey = cv2.normalize(mask_grey, None, 0, 1, cv2.NORM_MINMAX)
+    mask_grey = np.where(mask_grey < 0, 0, mask_grey)
+    mask_grey = np.where(mask_grey > 0.5, 1, 0)
+    # # print(np.mean(mask_grey[np.where(mask_grey > 0)]))
+
+    print(
+        "This normalization means that the RGB conversion will be clipped to within one standard deviation."
+    )
+    # mask_rgb = np.stack([mask_r, mask_g, mask_b], axis=2)
+    # mask_rgb =
+    mask_rgb = np.round(mask_rgb * 255).astype(np.uint8)
+    # mask_grey = cv2.cvtColor(mask_rgb*255, cv2.COLOR_RGB2GRAY)
+    # mask_grey =  mask_grey * 255
+
+    # do binary dilation on the grey_mask
+    mask_grey = binary_dilation(mask_grey, iterations=5)
+
+    return mask_rgb, mask_grey
 
 
 def get_img_path(trial_path: Path, img_type: ImageType, img_direction: ImageDirection, frame: int):

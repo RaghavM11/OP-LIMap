@@ -11,7 +11,7 @@ REPO_DIR = Path(".").resolve().parents[0]
 sys.path.append(REPO_DIR.as_posix())
 
 from limap_extension.optical_flow import Args, OpticalFlow, RAFT_MODEL_PATH
-from limap_extension.img_cloud_transforms import reproject_img, uvz_ned_to_xyz_cam, get_uv_coords
+from limap_extension.img_cloud_transforms import reproject_img, uvz_ned_to_xyz_cam, get_uv_coords, index_img_with_uv_coords, xyz_cam_to_uvz_ned
 from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 
 
@@ -26,8 +26,94 @@ def preprocess_valid_projection_mask(mask_valid_proj: np.ndarray):
     return mask_adjusted
 
 
-def flow_xyz_from_decomposed_motion(flow_up: np.ndarray, depth_1_cropped: np.ndarray,
-                                    depth_2_cropped: np.ndarray, mask_valid_projection_cropped):
+def flow_xyz_from_decomposed_motion(flow_up: np.ndarray,
+                                    depth_1_cropped: np.ndarray,
+                                    depth_2_cropped: np.ndarray,
+                                    mask_valid_projection_cropped: np.ndarray,
+                                    is_returning_associated_uvs_orig: bool = False):
+    # Idea: decompose the flow field into planar and depth components.
+    proj_mask_to_use = preprocess_valid_projection_mask(mask_valid_projection_cropped)
+
+    d1c_valid = depth_1_cropped[proj_mask_to_use]
+    d2c_valid = depth_2_cropped[proj_mask_to_use]
+
+    us, vs = get_uv_coords(*flow_up.shape[:-1])
+    us = us[proj_mask_to_use.flatten()]
+    vs = vs[proj_mask_to_use.flatten()]
+
+    dus = flow_up[proj_mask_to_use, 1].flatten()
+    dvs = flow_up[proj_mask_to_use, 0].flatten()
+
+    new_us_float = us + dus
+    new_vs_float = vs + dvs
+
+    zs_1_in_frame_2 = d1c_valid.reshape(-1)
+
+    GRABBING_FROM_DEPTH_2 = True
+    if GRABBING_FROM_DEPTH_2:
+        zs_2 = d2c_valid
+
+        # Additional consideration for indices outside of the frame.
+        d2_rows, d2_cols = depth_2_cropped.shape
+
+        new_us_int = np.round(new_us_float).astype(int)
+        new_vs_int = np.round(new_vs_float).astype(int)
+        valid_idxs = (new_us_int >= 0) & (new_us_int < d2_cols) & (new_vs_int >= 0) & (new_vs_int
+                                                                                       < d2_rows)
+        us = us[valid_idxs]
+        vs = vs[valid_idxs]
+        dus = dus[valid_idxs]
+        dvs = dvs[valid_idxs]
+        new_us_float = us + dus
+        new_vs_float = vs + dvs
+        new_us_int = np.round(new_us_float).astype(int)
+        new_vs_int = np.round(new_vs_float).astype(int)
+        zs_1_in_frame_2 = zs_1_in_frame_2[valid_idxs]
+        zs_2 = index_img_with_uv_coords(new_us_int, new_vs_int, depth_2_cropped)
+    else:
+        zs_2 = zs_1_in_frame_2
+
+    # TODO: We should be able to accomplish this just with matrix multiplication.
+    # i.e. H_NED_TO_CAM @ zs_1_in_frame_2 @ K_inv @ [dus, dvs, 1]
+    # That's more pseudocode than actual code since it ignores dimensionality issues.
+    xyz_1 = uvz_ned_to_xyz_cam(us, vs, zs_1_in_frame_2)
+
+    # Trying this out.
+    xyz_2 = uvz_ned_to_xyz_cam(new_us_float, new_vs_float, zs_2)
+    # zs_2_orig = depth_2_cropped.reshape(-1)
+    # zs_2 = depth_2_cropped.reshape(-1)
+    # zs_2_shifted = index_img_with_uv_coords(us + dus, vs + dvs, depth_2_cropped)
+    # xyz_2 = uvz_ned_to_xyz_cam(us + dus, vs + dvs, zs_2_shifted)
+
+    if GRABBING_FROM_DEPTH_2:
+        # planar_motion = np.zeros((depth_2_cropped.size, 2))
+        flow_xyz = np.zeros((*flow_up.shape[:-1], 3))
+        # Since there's a one-to-one correspondence between the u/vs here and the delta x/ys in
+        # xyz_2, we project these values back into image 2.
+        us, vs, _ = xyz_cam_to_uvz_ned(xyz_2, is_rounding_to_int=True)
+        flow_xyz[vs, us, :] = xyz_2 - xyz_1
+    else:
+        delta_xy = (xyz_1 - xyz_2)[:, :-1]
+        planar_motion = delta_xy.reshape(*flow_up.shape)
+
+        x_ned_motion = planar_motion[:, :, 0]
+        y_ned_motion = planar_motion[:, :, 1]
+
+        # Now, depth distance can be calculated by the difference in depth between the two frames.
+        depth_motion = np.abs(depth_2_cropped - depth_1_cropped)
+
+        # New idea, just consider planar motion since z-based motion is wrong (should be indexing
+        # image frame 2 depths with shifted coordinates).
+        # depth_motion = np.zeros_like(depth_2_cropped)
+
+        flow_xyz = np.stack((x_ned_motion, y_ned_motion, depth_motion), axis=-1)
+        flow_xyz[~proj_mask_to_use] = 0.0
+
+    return flow_xyz
+
+
+def flow_xyz_planar_motion_only(flow_up: np.ndarray, depth_1_cropped: np.ndarray,
+                                depth_2_cropped: np.ndarray, mask_valid_projection_cropped):
     # Idea: decompose the flow field into planar and depth components.
     proj_mask_to_use = preprocess_valid_projection_mask(mask_valid_projection_cropped)
     us, vs = get_uv_coords(*flow_up.shape[:-1])
@@ -39,7 +125,14 @@ def flow_xyz_from_decomposed_motion(flow_up: np.ndarray, depth_1_cropped: np.nda
     # i.e. H_NED_TO_CAM @ zs_1_in_frame_2 @ K_inv @ [dus, dvs, 1]
     # That's more pseudocode than actual code since it ignores dimensionality issues.
     xyz_1 = uvz_ned_to_xyz_cam(us, vs, zs_1_in_frame_2)
-    xyz_2 = uvz_ned_to_xyz_cam(us + dus, vs + dvs, zs_1_in_frame_2)
+
+    # Trying this out.
+    zs_2 = zs_1_in_frame_2
+    xyz_2 = uvz_ned_to_xyz_cam(us + dus, vs + dvs, zs_2)
+    # zs_2_orig = depth_2_cropped.reshape(-1)
+    # zs_2 = depth_2_cropped.reshape(-1)
+    # zs_2_shifted = index_img_with_uv_coords(us + dus, vs + dvs, depth_2_cropped)
+    # xyz_2 = uvz_ned_to_xyz_cam(us + dus, vs + dvs, zs_2_shifted)
 
     delta_xy = (xyz_1 - xyz_2)[:, :-1]
     planar_motion = delta_xy.reshape(*flow_up.shape)
@@ -47,13 +140,14 @@ def flow_xyz_from_decomposed_motion(flow_up: np.ndarray, depth_1_cropped: np.nda
     x_ned_motion = planar_motion[:, :, 0]
     y_ned_motion = planar_motion[:, :, 1]
 
-    # Now, depth distance can be calculated by the difference in depth between the two frames.
-    depth_motion = np.abs(depth_2_cropped - depth_1_cropped)
+    # New idea, just consider planar motion since z-based motion is wrong (should be indexing
+    # image frame 2 depths with shifted coordinates).
+    depth_motion = np.zeros_like(depth_2_cropped)
 
-    flow_xyz = np.stack((x_ned_motion, y_ned_motion, depth_motion), axis=-1)
-    flow_xyz[~proj_mask_to_use] = 0.0
+    flow_planar = np.stack((x_ned_motion, y_ned_motion, depth_motion), axis=-1)
+    flow_planar[~proj_mask_to_use] = 0.0
 
-    return flow_xyz
+    return flow_planar
 
 
 def segment_flow_xyz(flow_xyz: np.ndarray, threshold: float = 0.4):
