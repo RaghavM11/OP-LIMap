@@ -13,7 +13,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 REPO_DIR = ROOT_DIR.parents[1]
 sys.path.append(REPO_DIR.as_posix())
 
-from limap_extension.utils.io import read_rgbd, read_pose
+from limap_extension.utils.io import read_rgbd, read_pose, save_mask
 from limap_extension.constants import ImageDirection
 from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 from limap_extension.optical_flow import OpticalFlow, Args, RAFT_MODEL_PATH
@@ -148,12 +148,6 @@ class JobList:
         for job in new_jobs:
             print("Caching job:", job.get_hash())
             job.cache_job()
-
-
-def save_mask(mask: np.ndarray, out_path: Path):
-    mask = mask.astype(np.uint8) * 255
-    mask = Image.fromarray(mask)
-    mask.save(out_path)
 
 
 def process_single_frame_pair(job: Job, frame_idx: int, poses: np.ndarray):
