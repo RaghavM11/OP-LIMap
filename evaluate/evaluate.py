@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 import os
 
 
-SEG_DIR = '../P001/seg_left' 
-FINALTRACKS_SAMPLE_PATH = '../tests/data/finaltracks_sample/'
+SEG_DIR = '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/carwelding/Hard/P001/seg_left' 
+FINALTRACKS_SAMPLE_PATH = '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/triangulation/finaltracks/'
 
-GROUND_TRUTH_DIR_1 = '../P001/ground_truth_mask/'
-GROUND_TRUTH_DIR_2 = '../P002/ground_truth_mask/'
-GROUND_TRUTH_DIR_3 = '../P003/ground_truth_mask/'
+GROUND_TRUTH_DIR_1 = '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/P001/ground_truth_mask/'
+GROUND_TRUTH_DIR_2 = '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/P002/ground_truth_mask/'
+GROUND_TRUTH_DIR_3 = '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/P003/ground_truth_mask/'
 
 # SEG_DIR = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/seg_left' 
 # FINALTRACKS_SAMPLE_PATH = '/home/saketp/Desktop/LIMap-Extension/tests/data/finaltracks_sample/'
@@ -28,7 +28,8 @@ def read_seg_mask():
 
         # now save dynamic mask in the ground truth directory
         ground_truth_mask = os.path.join(GROUND_TRUTH_DIR_3, seg.split('/')[-1])
-        if not os.path.exists(GROUND_TRUTH_DIR_3): os.makedirs(GROUND_TRUTH_DIR_3)
+        if not os.path.exists(GROUND_TRUTH_DIR_3): 
+            os.makedirs(GROUND_TRUTH_DIR_3)
         np.save(ground_truth_mask, dynamic_mask)
     
 
@@ -48,7 +49,8 @@ def check_intersection(x1, y1, x2, y2, ix, iy):
 
 
 def check_intersection_lines(lines, points):
-    points = np.array(points) 
+    points = np.array(points)
+    lines = np.array(lines)
     x1, y1, x2, y2 = lines[:, 0], lines[:, 1], lines[:, 2], lines[:, 3]
     x, y = points[:, 0], points[:, 1]
     
@@ -110,33 +112,64 @@ for filename in image_id_arrays.keys():
 
 # Uncomment the 2 lines below to get the segmentation and dynamic masks; store them in your respective directories
 
-# read_seg_mask()
-# read_dyn_mask()
+read_seg_mask()
+read_dyn_mask()
 
 
 dyn_mask_list = {}
 
 for filename in os.listdir(GROUND_TRUTH_DIR_3):
     if filename.endswith('.npy'):
+        print(filename)
         filepath = os.path.join(GROUND_TRUTH_DIR_3, filename)
         data = np.load(filepath)
-        
         scene_id = int(filename.split('_')[0])
+        print (scene_id)
         dyn_mask_list[scene_id] = data
+output_file = 'linetrack_scores_3.txt'
+cum_score = 0
+total_lines = 0
+with open(output_file, 'w') as file:
+    for linetrack, lines in line2d_arrays.items():
+        scene_ids = image_id_arrays[linetrack] 
+        score = 0
+        # print("just checking")
+        # print(lines, scene_ids, linetrack)
+        total_lines += len(lines)
+        for scene_id in range(len(scene_ids)):
+            if scene_id in dyn_mask_list: 
+                dyn_mask = dyn_mask_list[scene_id]
+                li = lines[scene_id]
+                li = np.reshape(li, (1, 4))
+                locs = np.where(dyn_mask == 1)
+
+                if locs[0].size > 0:
+                    intersection = check_intersection_lines(li, locs)
+                    if not intersection[0]:
+                        score += 1
+                    # print(intersection)
+        #             if not np.any(intersection): score += 1
+        #     else: print(f"Dynamic mask not found for scene_id {scene_id}")
+        cum_score += score
+        # print(f"Score for linetrack {linetrack}: {score}")
+        file.write(f"Score for linetrack {linetrack}: {score}\n")
+    file.write(f"Total lines (2d projections of the track): {total_lines}\n")
+    file.write(f"Total score: {cum_score}\n")
+
+print(f"Scores saved to {output_file}")
+
+# all_pixel_locations = []
+# for scene_id, dyn_mask in dyn_mask_list.items():
+#     pixel_locations = np.where(dyn_mask == 1)
+#     all_pixel_locations.extend(list(zip(pixel_locations[0], pixel_locations[1])))
+#     # print(f"Pixel locations with value 1 in {filename}:")
+#     # for x, y in zip(pixel_locations[0], pixel_locations[1]):
+#     #     print(f"({x}, {y})")
 
 
-all_pixel_locations = []
-for scene_id, dyn_mask in dyn_mask_list.items():
-    pixel_locations = np.where(dyn_mask == 1)
-    all_pixel_locations.extend(list(zip(pixel_locations[0], pixel_locations[1])))
-    # print(f"Pixel locations with value 1 in {filename}:")
-    # for x, y in zip(pixel_locations[0], pixel_locations[1]):
-    #     print(f"({x}, {y})")
-
-
-all_locations_array = np.array(all_pixel_locations)
-print("All pixel locations with value 1 across all images:")
-print(all_locations_array)
+# all_locations_array = np.array(all_pixel_locations)
+# print("All pixel locations with value 1 across all images:")
+# print(all_locations_array)
 
 
 # for filename, line2d_array in line2d_arrays.items():
@@ -158,27 +191,7 @@ print(all_locations_array)
 #     for score in scores: print(score)
 
 
-output_file = 'linetrack_scores_3.txt'
 
-with open(output_file, 'w') as file:
-    for linetrack, lines in line2d_arrays.items():
-        scene_ids = image_id_arrays[linetrack]  
-        
-        score = 0
-        for scene_id in scene_ids:
-            if scene_id in dyn_mask_list:  
-                dyn_mask = dyn_mask_list[scene_id]
-                locs = np.where(dyn_mask == 1)
-
-                if locs[0].size > 0:
-                    intersection = check_intersection_lines(lines, locs)
-                    if not np.any(intersection): score += 1
-            else: print(f"Dynamic mask not found for scene_id {scene_id}")
-
-        print(f"Score for linetrack {linetrack}: {score}")
-        file.write(f"Score for linetrack {linetrack}: {score}\n")
-
-print(f"Scores saved to {output_file}")
 
 
 
