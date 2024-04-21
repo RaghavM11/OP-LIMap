@@ -31,7 +31,7 @@ def ned2cam_single_pose(pose: np.ndarray) -> np.ndarray:
     """transfer a ned traj to camera frame traj"""
     T = H_CAM_TO_NED
     pose_mat = get_transform_matrix_from_pose_array(pose)
-    new_pose = T @ pose_mat  #@ T_inv
+    new_pose = T @ pose_mat @ inverse_pose(T)
 
     return new_pose
 
@@ -40,7 +40,7 @@ def cam2ned_single_pose(pose: np.ndarray) -> np.ndarray:
     """transfer a camera traj to ned frame traj"""
     T = H_NED_TO_CAM
     pose_mat = get_transform_matrix_from_pose_array(pose)
-    new_pose = T @ pose_mat
+    new_pose = T @ pose_mat @ inverse_pose(T)
 
     return new_pose
 
@@ -109,10 +109,10 @@ def uvz_ned_to_xyz_cam(us: np.ndarray,
     # print("xyzs_img shape:", xyzs_ned.shape)
     # xyzs_cam = (H_IMG_TO_CAM @ np.hstack([xyzs_img, np.ones((xyzs_img.shape[0], 1))]).T).T[:, :-1]
     # xyzs_cam = tform_coords(np.linalg.inv(H_IMG_TO_CAM), xyzs_img)
-    xyzs_cam = tform_coords(H_NED_TO_CAM, xyzs_ned)
+    # xyzs_cam = tform_coords(H_NED_TO_CAM, xyzs_ned)
     # xyzs_cam =
-    return xyzs_cam
-    # return xyzs_ned
+    # return xyzs_cam
+    return xyzs_ned
 
 
 def xyz_cam_to_uvz_ned(
@@ -332,6 +332,9 @@ def cloud_to_img_np(
 
         mask_valid_projection = np.zeros((img_height, img_width), dtype=bool)
         mask_valid_projection[vs_valid, us_valid] = True
+        from scipy.ndimage import binary_erosion
+        kernel = np.ones((3, 3))
+        mask_valid_projection = binary_erosion(mask_valid_projection, kernel)
     elif interpolation_method == "clough_tocher":
         raise NotImplementedError("Clough-Tocher interpolation not yet implemented.")
         from scipy.interpolate import CloughTocher2DInterpolator
