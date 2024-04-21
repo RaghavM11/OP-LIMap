@@ -58,14 +58,9 @@ def cfg_to_image_collection(cfg: Dict):
     cam_pose = read_pose(cfg["extension_dataset"]["dataset_path"], constants.ImageDirection.LEFT)
     cam_ext = []
     for pose_cam_in_world_frame in cam_pose:
-        # Is this true? The pose returned from read_pose is in world coordinate frame, which differs
+        # The pose returned from read_pose is in world coordinate frame, which differs
         # from the camera coordinate frame that the intrinsic expects. To fix this, we need to
-        # convert the world pose into the world pose in NED frame.
-        # constants.H_CAM_TO_NED
-        # pose_world = get_transform_matrix_from_pose_array(pose)
-        # pose_cam_in_world_ned_frame = cam2ned_single_pose(pose_cam_in_world_frame)
-        # cam_ext.append(pose_cam_in_world_ned_frame @ inverse_pose(constants.H_CAM_TO_NED))
-        cam_ext.append(get_transform_matrix_from_pose_array(pose_cam_in_world_frame))
+        # convert the world pose into the camera frame (pose in NED frame).
         pose_cam_in_world_frame = ned2cam_single_pose(pose_cam_in_world_frame)
         # cam_ext.append(get_transform_matrix_from_pose_array(pose_cam_in_world_frame))
         cam_ext.append(pose_cam_in_world_frame)
@@ -129,6 +124,7 @@ def get_argparser():
                             help='folder to load precomputed results')
     return arg_parser
 
+
 def parse_args(arg_parser):
     if arg_parser is None:
         arg_parser = get_argparser()
@@ -136,7 +132,8 @@ def parse_args(arg_parser):
     args, unknown = arg_parser.parse_known_args()
     return args, unknown
 
-def parse_config(args = None, unknown = None, arg_parser = None):
+
+def parse_config(args=None, unknown=None, arg_parser=None):
     if args is None and unknown is None:
         if arg_parser is None:
             arg_parser = get_argparser()

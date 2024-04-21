@@ -18,15 +18,14 @@ from scripts.run_mapping import (get_argparser, parse_config, parse_args, cfg_to
 
 import limap.base as _base
 import limap.util.io as limapio
-import limap.visualize as limapvis
+import limap_extension.visualize as limapvis
 
 #add rerun and it's dependencies
 import limap.structures as _structures
 
 import rerun as rr
 
-rr.init("my_data_generating_application")
-#rr.connect()  # Connect to a remote viewer
+import time
 
 
 def parse_to_config():
@@ -34,7 +33,11 @@ def parse_to_config():
     arg_parser = get_argparser()
     # arg_parser = argparse.ArgumentParser(description='visualize 3d lines')
     # arg_parser.add_argument('-i', '--input_dir', type=str, required=True, help='input line file. Format supported now: .obj, .npy, linetrack folder.')
-    arg_parser.add_argument('-nv', '--n_visible_views', type=int, default=2, help='number of visible views')
+    arg_parser.add_argument('-nv',
+                            '--n_visible_views',
+                            type=int,
+                            default=2,
+                            help='number of visible views')
     #arg_parser.add_argument('--bpt3d_pl', type=str, default=None, help=".npz file for point-line associations") #add for rerun point-line association
     #arg_parser.add_argument('--bpt3d_vp', type=str, default=None, help=".npz file for line-vanishing point associations") #add for rerun
     #arg_parser.add_argument('--segments2d', type=str, default=None, help="directory containing detected 2D segments")# add for rerun
@@ -55,7 +58,7 @@ def parse_to_config():
     #                         default=DEFAULT_BASE_CONFIG_PATH.as_posix(),
     #                         help='default config file')
     # args, unknown = arg_parser.parse_known_args()
-    
+
     # cfg = cfgutils.load_config(args.config_file, default_path=args.config_file)
 
     # shortcuts = dict()
@@ -71,10 +74,10 @@ def parse_to_config():
     #     experiment_source = Path(cfg["extension_dataset"]["dataset_path"]).relative_to(constants.DATASET_DIR)
     #     folder_to_load = folder_to_load_base / experiment_source
     #     cfg["folder_to_load"] = folder_to_load.as_posix()
-    
+
     args, unknown = parse_args(arg_parser)
     cfg = parse_config(args, unknown)
-        
+
     cfg["metainfos"] = os.path.join(cfg["output_dir"], cfg["experiment_name"], "metainfos.txt")
     cfg["imagecols"] = None
     cfg["use_robust_ranges"] = False
@@ -82,6 +85,7 @@ def parse_to_config():
     cfg["scale"] = 1.0
     cfg["cam_scale"] = 1.0
     return cfg
+
 
 def vis_3d_lines(lines, mode="open3d", ranges=None, scale=1.0):
     print("\n\nHERE\n\n")
@@ -94,13 +98,25 @@ def vis_3d_lines(lines, mode="open3d", ranges=None, scale=1.0):
     else:
         raise NotImplementedError
 
-def vis_reconstruction(linetracks, imagecols, mode="open3d", n_visible_views=4, ranges=None, scale=1.0, cam_scale=1.0):
+
+def vis_reconstruction(linetracks,
+                       imagecols,
+                       mode="open3d",
+                       n_visible_views=4,
+                       ranges=None,
+                       scale=1.0,
+                       cam_scale=1.0):
     if mode == "open3d":
         VisTrack = limapvis.Open3DTrackVisualizer(linetracks)
     else:
-        raise ValueError("Error! Visualization with cameras is only supported with open3d and rerun.")
+        raise ValueError(
+            "Error! Visualization with cameras is only supported with open3d and rerun.")
     VisTrack.report()
-    VisTrack.vis_reconstruction(imagecols, n_visible_views=n_visible_views, ranges=ranges, scale=scale, cam_scale=cam_scale)
+    VisTrack.vis_reconstruction(imagecols,
+                                n_visible_views=n_visible_views,
+                                ranges=ranges,
+                                scale=scale,
+                                cam_scale=cam_scale)
 
 
 def main(cfg):
@@ -123,19 +139,24 @@ def main(cfg):
         #     raise ValueError("Error! Input file {0} is not valid".format(cfg["imagecols"]))
         # imagecols = _base.ImageCollection(limapio.read_npy(cfg["imagecols"]).item())
         imagecols = cfg["imagecols"]
-        vis_reconstruction(linetracks, imagecols, mode=cfg["mode"], n_visible_views=cfg["n_visible_views"], ranges=ranges, scale=cfg["scale"], cam_scale=cfg["cam_scale"],segments2d=segments2d)
+        vis_reconstruction(linetracks,
+                           imagecols,
+                           mode=cfg["mode"],
+                           n_visible_views=cfg["n_visible_views"],
+                           ranges=ranges,
+                           scale=cfg["scale"],
+                           cam_scale=cfg["cam_scale"],
+                           segments2d=segments2d)
 
-        if cfg ["segments2d"] is None:
+        if cfg["segments2d"] is None:
             segments2d = None
         else:
             segments2d = limapio.read_all_segments_from_folder(lines_output_file)
     if cfg["dir_save"] is not None:
-        out_dir_experiment = os.path.join(cfg["dir_save"], cfg["experiment_name"])
+        out_dir_experiment = os.path.join(cfg["dir_save"], cfg["experiment_name"], "out.obj")
         limapio.save_obj(out_dir_experiment, lines)
-        
-    
+
 
 if __name__ == '__main__':
     cfg = parse_to_config()
     main(cfg)
-

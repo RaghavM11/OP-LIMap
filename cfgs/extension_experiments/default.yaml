@@ -21,6 +21,7 @@ output_dir: outputs
 experiment_name: null
 load_dir: null
 dir_load: null
+dir_save: outputs
 n_jobs: -1 # for undistortion
 undistortion_output_dir: "undistorted_images"
 
