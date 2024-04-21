@@ -3,43 +3,130 @@ import cv2
 import matplotlib.pyplot as plt
 import os
 
-# SEG_DIR = # OS PATHS HERE: '/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P007/seg_left/'
-# GROUND_TRUTH_DIR = # OS PATHS HERE'/Users/shlokagarwal/Desktop/Mobile Robotics/project/LIMap-Extension/datasets/P007/ground_truth_mask/'
-SEG_DIR = None 
-GROUND_TRUTH_DIR = None
-def read_seg_mask():
 
+SEG_DIR = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/seg_left' 
+FINALTRACKS_SAMPLE_PATH = '/home/saketp/Desktop/LIMap-Extension/tests/data/finaltracks_sample/'
+
+GROUND_TRUTH_DIR_1 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/ground_truth_mask/'
+GROUND_TRUTH_DIR_2 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P002_with_flow_masks/carwelding/Hard/P002/ground_truth_mask/'
+GROUND_TRUTH_DIR_3 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P003_with_flow_masks/carwelding/Hard/P003/ground_truth_mask/'
+
+
+def read_seg_mask():
     for seg in os.listdir(SEG_DIR):
         seg = os.path.join(SEG_DIR, seg)
         seg_mask = np.load(seg)
         dynamic_mask = np.zeros_like(seg_mask)
         dynamic_mask[seg_mask == 232] = 1
-        # now save dynamic mask in the ground thruth directory
-        ground_truth_mask = os.path.join(GROUND_TRUTH_DIR, seg.split('/')[-1])
-        if not os.path.exists(GROUND_TRUTH_DIR):
-            os.makedirs(GROUND_TRUTH_DIR)
+
+        # now save dynamic mask in the ground truth directory
+        ground_truth_mask = os.path.join(GROUND_TRUTH_DIR_1, seg.split('/')[-1])
+        if not os.path.exists(GROUND_TRUTH_DIR_1): os.makedirs(GROUND_TRUTH_DIR_1)
         np.save(ground_truth_mask, dynamic_mask)
+    
 
 def read_dyn_mask():
-    for dyn in os.listdir(GROUND_TRUTH_DIR):
-        dyn = os.path.join(GROUND_TRUTH_DIR, dyn)
+    for dyn in os.listdir(GROUND_TRUTH_DIR_1):
+        if not dyn.startswith("track"): continue
+        dyn = os.path.join(GROUND_TRUTH_DIR_1, dyn)
         dyn_mask = np.load(dyn)
 
+
 def check_intersection(x1, y1, x2, y2, ix, iy):
-    if x1 == x2:
-        return abs(x1 - ix) < 1e-6
+    if x1 == x2: return abs(x1 - ix) < 1e-6
     if min(x1, x2) <= ix <= max(x1, x2) and min(y1, y2) <= iy <= max(y1, y2):
         line_equation = lambda x: (y2 - y1) / (x2 - x1) * (x - x1) + y1
-        if abs(line_equation(ix) - iy) < 1e-6:
-            return True
+        if abs(line_equation(ix) - iy) < 1e-6: return True
     return False
-     
-x1, y1 = 1, 1
-x2, y2 = 5, 5
-x_point, y_point = 3, 3
-print(check_intersection(x1, y1, x2, y2, x_point, y_point))
-#read_seg_mask()
-#read_dyn_mask()
+
+
+image_id_arrays = {}
+line2d_arrays = {}
+
+for filename in os.listdir(FINALTRACKS_SAMPLE_PATH):
+    if filename.startswith("track_") and filename.endswith(".txt"):
+        with open(os.path.join(FINALTRACKS_SAMPLE_PATH, filename), 'r') as file: lines = file.readlines()
+
+        image_id_list = []
+        line2d_list = []
+
+        for line_index, line in enumerate(lines):
+            if line.startswith("image_id_list"): image_id_list = line.split()[2:]  
+            elif line.startswith("line2d_list"):
+                end_index = len(lines)
+                for end_line_index, end_line in enumerate(lines[line_index + 1:]):
+                    if end_line.startswith("node_id_list"):
+                        end_index = line_index + 1 + end_line_index
+                        break
+                
+                line2d_list = [list(map(float, point.split())) for point in lines[line_index + 1:end_index]]
+                line2d_array = np.array(line2d_list)
+
+        image_id_array = np.array(image_id_list, dtype=int)
+        image_id_arrays[filename] = image_id_array
+        line2d_arrays[filename] = line2d_array
+
+
+for filename in image_id_arrays.keys():
+    print(f"Track: {filename}")
+    print("Image ID List:")
+    print(image_id_arrays[filename])
+    print("Line2D List:")
+    print(line2d_arrays[filename])
+
+
+# read_seg_mask()
+# read_dyn_mask()
+
+
+all_pixel_locations = []
+
+for filename in os.listdir(GROUND_TRUTH_DIR_1):
+    if filename.endswith('.npy'):
+        filepath = os.path.join(GROUND_TRUTH_DIR_1, filename)
+        data = np.load(filepath)
+
+        pixel_locations = np.where(data == 1)
+        all_pixel_locations.extend(list(zip(pixel_locations[0], pixel_locations[1])))
+        # print(f"Pixel locations with value 1 in {filename}:")
+        # for x, y in zip(pixel_locations[0], pixel_locations[1]):
+        #     print(f"({x}, {y})")
+
+
+all_locations_array = np.array(all_pixel_locations)
+print("All pixel locations with value 1 across all images:")
+print(all_locations_array)
+
+
+score_counts = {}
+
+for filename, line2d_array in line2d_arrays.items():
+    score_counts[filename] = []
+    print('done')
+    for ix, iy in all_locations_array:
+        score = 0
+        count = 0
+        for line_segment in line2d_array:
+            x1, y1, x2, y2 = line_segment
+            if check_intersection(x1, y1, x2, y2, ix, iy): score += 1
+            count += 1
+        score_counts[filename].append((ix, iy, score, count))
+
+
+for filename, scores in score_counts.items():
+    print(f"Track: {filename}")
+    print("Scores:")
+    for score in scores: print(score)
+
+
+
+# Extra code
+
+# x1, y1 = 1, 1
+# x2, y2 = 5, 5
+# x_point, y_point = 3, 3
+# print(check_intersection(x1, y1, x2, y2, x_point, y_point))
+
 
 # def get_2d_lines(img):
 #     """Get 2D lines from an image."""
@@ -86,4 +173,3 @@ print(check_intersection(x1, y1, x2, y2, x_point, y_point))
 
 # point3 = np.arrya2, 1
 # x3, y3 = 3, 1
-
