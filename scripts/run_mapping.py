@@ -26,8 +26,8 @@ from limap_extension import constants
 from limap_extension.utils.io import read_all_rgbd, read_pose
 from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 from limap_extension.line_triangulation import line_triangulation
+# from limap_extension.img_cloud_transforms import cam2ned_single_pose, inverse_pose
 from limap_extension.img_cloud_transforms import ned2cam_single_pose
-
 # from limap_extension.line_triangulation import line_triangulation
 
 # TODO: Create a directory for storing all of our experiment configuration files so that the
@@ -65,6 +65,7 @@ def cfg_to_image_collection(cfg: Dict):
         # pose_world = get_transform_matrix_from_pose_array(pose)
         # pose_cam_in_world_ned_frame = cam2ned_single_pose(pose_cam_in_world_frame)
         # cam_ext.append(pose_cam_in_world_ned_frame @ inverse_pose(constants.H_CAM_TO_NED))
+        cam_ext.append(get_transform_matrix_from_pose_array(pose_cam_in_world_frame))
         pose_cam_in_world_frame = ned2cam_single_pose(pose_cam_in_world_frame)
         # cam_ext.append(get_transform_matrix_from_pose_array(pose_cam_in_world_frame))
         cam_ext.append(pose_cam_in_world_frame)
@@ -128,7 +129,6 @@ def get_argparser():
                             help='folder to load precomputed results')
     return arg_parser
 
-
 def parse_args(arg_parser):
     if arg_parser is None:
         arg_parser = get_argparser()
@@ -136,8 +136,7 @@ def parse_args(arg_parser):
     args, unknown = arg_parser.parse_known_args()
     return args, unknown
 
-
-def parse_config(args=None, unknown=None, arg_parser=None):
+def parse_config(args = None, unknown = None, arg_parser = None):
     if args is None and unknown is None:
         if arg_parser is None:
             arg_parser = get_argparser()
