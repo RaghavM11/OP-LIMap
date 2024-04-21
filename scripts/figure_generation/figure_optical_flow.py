@@ -37,11 +37,25 @@ class FigureGenerator:
         self.rgb_2_frame_2_path = self.output_dir / "rgb_2_frame_2.png"
         self.rgb_1_frame_2_path = self.output_dir / "rgb_1_frame_2.png"
         self.mask_valid_projection_cropped_path = self.output_dir / "mask_valid_projection_cropped.png"
-        # the 4 panels of the image.
         self.flow_2d_rgb_path: Path = self.output_dir / "flow_2d_rgb.png"
+        self.flow_2d_magnitude_path: Path = self.output_dir / "flow_2d_magnitude_rgb.png"
         self.flow_2d_rgb_mask_path: Path = self.output_dir / "flow_2d_rgb_mask.png"
+        self.flow_2d_proj_rgb_path: Path = self.output_dir / "flow_2d_proj_rgb.png"
+        self.flow_2d_proj_magnitude_path: Path = self.output_dir / "flow_2d_proj_magnitude.png"
+        self.flow_2d_proj_rgb_mask_path: Path = self.output_dir / "flow_2d_proj_rgb_mask.png"
         self.flow_proj_rgb_path: Path = self.output_dir / "flow_proj_rgb.png"
+        self.flow_proj_magnitude_path: Path = self.output_dir / "flow_proj_magnitude.png"
         self.flow_proj_rgb_mask_path: Path = self.output_dir / "flow_proj_rgb_mask.png"
+
+    def save_magnitude(self, mag, outpath):
+        mag /= mag.max()
+        mag *= 255
+        mag = mag.astype(np.uint8)
+        if len(mag.shape) == 2:
+            mag = mag[..., None].repeat(3, axis=-1)
+        elif len(mag.shape) == 3 and mag.shape[-1] == 1:
+            mag = mag.repeat(3, axis=-1)
+        save_rgb(mag, outpath)
 
     def read_data(self):
         # Read data
@@ -80,71 +94,64 @@ class FigureGenerator:
         save_rgb(rgb_2_cropped, self.rgb_2_frame_2_path)
         save_rgb(img_1_in_frame_2_cropped, self.rgb_1_frame_2_path)
 
+        self.generate_flow_2d(flow, rgb_1, rgb_2)
+
         # TODO: Make this a callable input to the function that either actually calculates the flow or
         # loads in the ground truth flow?
         # Might be easier to make this a flag and conditional.
         # TODO: For ground truth flow, we'll also need to project that from frame 1 into frame 2
         _, flow_up = flow.infer_flow(img_1_in_frame_2_cropped, rgb_2_cropped)
-        flow_2d_rgb = flow.visualize(flow_up)
         flow_up = flow_up[0].permute(1, 2, 0).cpu().numpy()
 
-        _, mask_2d_rgb = flow_2d_to_rgb_and_mask(flow_up)
+        self.generate_flow_2d_proj(flow, flow_up, mask_valid_projection_cropped)
+
+        self.generate_flow_3d_proj(flow, flow_up, depth_1_in_frame_2_cropped, depth_2_cropped,
+                                   mask_valid_projection_cropped, valid_bbox, img_dims_orig)
+
+    def generate_flow_2d(self, flow: OpticalFlow, rgb_1: np.ndarray, rgb_2: np.ndarray):
+        _, flow_up = flow.infer_flow(rgb_1, rgb_2)
+        flow_up = flow_up[0].permute(1, 2, 0).cpu().numpy()
+
+        flow_mag = np.linalg.norm(flow_up, axis=-1)
+        self.save_magnitude(flow_mag, self.flow_2d_magnitude_path)
+
+        flow_2d_rgb, mask_2d_rgb = flow_2d_to_rgb_and_mask(flow, flow_up)
         save_rgb(flow_2d_rgb.astype(np.uint8), self.flow_2d_rgb_path)
         save_mask(mask_2d_rgb.astype(np.uint8), self.flow_2d_rgb_mask_path)
 
-        flow_reproj_rgb, mask_proj = self.generate_proj_flow_imgs(flow, flow_up,
-                                                                  depth_1_in_frame_2_cropped,
-                                                                  depth_2_cropped,
-                                                                  mask_valid_projection_cropped,
-                                                                  valid_bbox, img_dims_orig)
-
-        save_rgb(flow_reproj_rgb.astype(np.uint8), self.flow_proj_rgb_path)
-        save_mask(mask_proj.astype(np.uint8), self.flow_proj_rgb_mask_path)
-
-    def generate_flow_2d_imgs(flow: 'OpticalFlow', flow_up: np.ndarray,
+    def generate_flow_2d_proj(self, flow: 'OpticalFlow', flow_up: np.ndarray,
                               mask_valid_projection_cropped: np.ndarray):
-        flow_2d_viz = flow_up.copy()
-        flow_2d_viz[~mask_valid_projection_cropped] = 0
+        flow_mag = np.linalg.norm(flow_up, axis=-1)
+        self.save_magnitude(flow_mag, self.flow_2d_proj_magnitude_path)
+        flow_2d_rgb, mask_2d_rgb = flow_2d_to_rgb_and_mask(flow, flow_up)
+        flow_2d_rgb[~mask_valid_projection_cropped] = 0
+        mask_2d_rgb[~mask_valid_projection_cropped] = 0
+        save_rgb(flow_2d_rgb.astype(np.uint8), self.flow_2d_proj_rgb_path)
+        save_mask(mask_2d_rgb.astype(np.uint8), self.flow_2d_proj_rgb_mask_path)
 
-        flow_2d_rgb = flow.visualize(torch.from_numpy(flow_2d_viz).permute(2, 0, 1).unsqueeze(0))
-        return scale_flow_viz(flow_2d_rgb)
-
-    def generate_proj_flow_imgs(self, flow: OpticalFlow, flow_up: np.ndarray,
-                                depth_1_in_frame_2_cropped: np.ndarray, depth_2_cropped: np.ndarray,
-                                mask_valid_projection_cropped: np.ndarray, valid_bbox: np.ndarray,
-                                img_dims_orig: np.ndarray):
+    def generate_flow_3d_proj(self, flow: OpticalFlow, flow_up: np.ndarray,
+                              depth_1_in_frame_2_cropped: np.ndarray, depth_2_cropped: np.ndarray,
+                              mask_valid_projection_cropped: np.ndarray, valid_bbox: np.ndarray,
+                              img_dims_orig: np.ndarray):
 
         flow_xyz = flow_xyz_from_decomposed_motion(flow_up, depth_1_in_frame_2_cropped,
                                                    depth_2_cropped, mask_valid_projection_cropped)
+        mask_proj = segment_flow_xyz(flow_xyz)
+        flow_mag = np.linalg.norm(flow_up, axis=-1, keepdims=True)
+        self.save_magnitude(flow_mag, self.flow_proj_magnitude_path)
 
-        # mask_proj = segment_flow_xyz(flow_xyz)
-        # mask_proj = valid_bbox.uncrop_img(mask_proj, *img_dims_orig, fill_value=False)
-
-        # # Convert flow XYZ to RGB
-        # # angle = np.dot(flow_xyz, np.array([1, 0, 0])) / np.linalg.norm(flow_xyz, axis=-1)
-        # # angle = np.arccos(angle) / np.pi * 180.
-        # # mag = np.linalg.norm(flow_xyz, axis=-1)
-        # # flow_proj_rgb = flow_mag_angle_to_rgb(mag, angle)
-
-        # # Need to convert the flow from 2D to 3D but while preserving the total magnitude. Should I
-        # # use cross product?
-        # # Have to be careful with coordinates here.
-
-        # return flow_proj_rgb, mask_proj
-        # flow_xyz_expand = valid_bbox.uncrop_img(flow_xyz, *img_dims_orig, fill_value=0)
-        # flow_xyz_mag_tot = np.linalg.norm(flow_xyz_expand, axis=-1)
         flow_xyz_mag_tot = np.linalg.norm(flow_xyz, axis=-1)
-        flow_xyz_mag_planar = np.linalg.norm(flow_xyz_expand[..., 1:], axis=-1)
+        flow_xyz_mag_planar = np.linalg.norm(flow_xyz[..., 1:], axis=-1)
         flow_xyz_mag_planar[flow_xyz_mag_planar < 1e-1] = 1e-1
 
-        plt.figure()
-        plt.imshow(flow_xyz_mag_tot)
-        plt.figure()
-        plt.imshow(flow_xyz_mag_planar)
+        # plt.figure()
+        # plt.imshow(flow_xyz_mag_tot)
+        # plt.figure()
+        # plt.imshow(flow_xyz_mag_planar)
 
         flow_scale = flow_xyz_mag_tot / flow_xyz_mag_planar
 
-        flow_scale[~mask_valid_projection] = 0
+        flow_scale[~mask_valid_projection_cropped] = 0
 
         # flow_planar = valid_bbox.uncrop_img(flow_up.copy(), *rgb_1.shape[:-1], 0)
         # flow_planar_mag = np.linalg.norm(flow_planar, axis=-1)
@@ -158,21 +165,24 @@ class FigureGenerator:
         # Basically, we scale the flow_2d by the magnitude of the scale 3D (projection, but respects
         # magnitude)
 
-        flow_up_expand = valid_bbox.uncrop_img(flow_up, *img_dims_orig, fill_value=0)
-        flow_proj_vis = np.round(flow_scale[..., None] * flow_up_expand)
+        # flow_up_expand = valid_bbox.uncrop_img(flow_up, *img_dims_orig, fill_value=0)
+        flow_proj_vis = np.round(flow_scale[..., None] * flow_up)
 
         flow_reproj_rgb = flow.visualize(
             torch.from_numpy(flow_proj_vis).permute(2, 0, 1).unsqueeze(0))
 
-        plt.imshow(scale_flow_viz(flow_reproj_rgb))
+        save_rgb(flow_reproj_rgb.astype(np.uint8), self.flow_proj_rgb_path)
+        save_mask(mask_proj.astype(np.uint8), self.flow_proj_rgb_mask_path)
 
     # def _make_figure(self, rgb_1: np.ndarray, depth_1: np.ndarray, rgb_2: np.ndarray,
     #                  depth_2: np.ndarray, pose_1: np.ndarray, flow: OpticalFlow):
 
     def get_target_files(self) -> List[Path]:
         return [
-            self.flow_2d_rgb_path, self.flow_2d_rgb_mask_path, self.flow_proj_rgb_path,
-            self.flow_proj_rgb_mask_path, self.rgb_2_frame_2_path, self.rgb_1_frame_2_path,
+            self.flow_2d_rgb_mask_path, self.flow_2d_rgb_path, self.flow_2d_proj_rgb_path,
+            self.flow_2d_proj_rgb_mask_path, self.flow_proj_rgb_path, self.flow_proj_rgb_mask_path,
+            self.rgb_2_frame_2_path, self.rgb_1_frame_2_path, self.flow_2d_magnitude_path,
+            self.flow_2d_proj_magnitude_path, self.flow_proj_magnitude_path,
             self.get_figure_path()
         ]
 
