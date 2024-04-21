@@ -27,15 +27,15 @@ def read_seg_mask():
         dynamic_mask[seg_mask == 232] = 1
 
         # now save dynamic mask in the ground truth directory
-        ground_truth_mask = os.path.join(GROUND_TRUTH_DIR_1, seg.split('/')[-1])
-        if not os.path.exists(GROUND_TRUTH_DIR_1): os.makedirs(GROUND_TRUTH_DIR_1)
+        ground_truth_mask = os.path.join(GROUND_TRUTH_DIR_3, seg.split('/')[-1])
+        if not os.path.exists(GROUND_TRUTH_DIR_3): os.makedirs(GROUND_TRUTH_DIR_3)
         np.save(ground_truth_mask, dynamic_mask)
     
 
 def read_dyn_mask():
-    for dyn in os.listdir(GROUND_TRUTH_DIR_1):
+    for dyn in os.listdir(GROUND_TRUTH_DIR_3):
         if not dyn.startswith("track"): continue
-        dyn = os.path.join(GROUND_TRUTH_DIR_1, dyn)
+        dyn = os.path.join(GROUND_TRUTH_DIR_3, dyn)
         dyn_mask = np.load(dyn)
 
 
@@ -43,7 +43,7 @@ def check_intersection(x1, y1, x2, y2, ix, iy):
     if x1 == x2: return abs(x1 - ix) < 1e-6
     if min(x1, x2) <= ix <= max(x1, x2) and min(y1, y2) <= iy <= max(y1, y2):
         line_equation = lambda x: (y2 - y1) / (x2 - x1) * (x - x1) + y1
-        if abs(line_equation(ix) - iy) < 1e-6: return True # Change '1e-6' with another threshold??
+        if abs(line_equation(ix) - iy) < 1e-6: return True
     return False
 
 
@@ -116,9 +116,9 @@ for filename in image_id_arrays.keys():
 
 dyn_mask_list = {}
 
-for filename in os.listdir(GROUND_TRUTH_DIR_1):
+for filename in os.listdir(GROUND_TRUTH_DIR_3):
     if filename.endswith('.npy'):
-        filepath = os.path.join(GROUND_TRUTH_DIR_1, filename)
+        filepath = os.path.join(GROUND_TRUTH_DIR_3, filename)
         data = np.load(filepath)
         
         scene_id = int(filename.split('_')[0])
@@ -139,12 +139,6 @@ print("All pixel locations with value 1 across all images:")
 print(all_locations_array)
 
 
-score_counts = {}
-
-# This function takes an insanely long time to run
-# TODO: Try this on a GPU
-# Update 1: Can't optimize with GPU, next best thing that can be done is make small batches and visualize
-
 # for filename, line2d_array in line2d_arrays.items():
 #     score_counts[filename] = []
 #     print('done')
@@ -164,7 +158,7 @@ score_counts = {}
 #     for score in scores: print(score)
 
 
-output_file = 'linetrack_scores_1.txt'
+output_file = 'linetrack_scores_3.txt'
 
 with open(output_file, 'w') as file:
     for linetrack, lines in line2d_arrays.items():
