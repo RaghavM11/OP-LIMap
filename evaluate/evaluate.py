@@ -75,6 +75,7 @@ for filename in image_id_arrays.keys():
     print(line2d_arrays[filename])
 
 
+# Uncomment the 2 lines below to get the segmentation and dynamic masks 
 # read_seg_mask()
 # read_dyn_mask()
 
@@ -100,6 +101,8 @@ print(all_locations_array)
 
 score_counts = {}
 
+# This function takes an insanely long time to run
+# TODO: Try this on a GPU
 for filename, line2d_array in line2d_arrays.items():
     score_counts[filename] = []
     print('done')
