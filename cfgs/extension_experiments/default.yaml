@@ -39,6 +39,7 @@ extension_dataset:
     # cam_id: left  # Can be "left", "right", or "both"
     pruning_dynamic_objects: true
     cam_id: left
+    max_num_imgs: null
 
 ##############################
 # sfm config

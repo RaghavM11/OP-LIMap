@@ -1,3 +1,4 @@
 extension_dataset:
   dataset_path: datasets/carwelding/Hard/P001/
+  max_num_imgs: 300
 experiment_name: carwelding_hard_p001

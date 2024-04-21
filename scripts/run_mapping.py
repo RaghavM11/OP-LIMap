@@ -53,11 +53,19 @@ DEFAULT_BASE_CONFIG_PATH = REPO_DIR / "cfgs" / "extension_experiments" / "defaul
 def cfg_to_image_collection(cfg: Dict):
     K = constants.CAM_INTRINSIC.astype(np.float32)
     img_hw = [480, 640]
+
     images, image_name, _, _ = read_all_rgbd(cfg["extension_dataset"]["dataset_path"],
                                              constants.ImageDirection.LEFT)
+    max_num_imgs = cfg["extension_dataset"].get("max_num_imgs", None)
+    if max_num_imgs is None:
+        num_imgs_to_use = len(images)
+    else:
+        num_imgs_to_use = min(max_num_imgs, len(images))
+    # num_imgs_to_read = len(images)
+
     cam_pose = read_pose(cfg["extension_dataset"]["dataset_path"], constants.ImageDirection.LEFT)
     cam_ext = []
-    for pose_cam_in_world_frame in cam_pose:
+    for pose_cam_in_world_frame in cam_pose[:num_imgs_to_use]:
         # The pose returned from read_pose is in world coordinate frame, which differs
         # from the camera coordinate frame that the intrinsic expects. To fix this, we need to
         # convert the world pose into the camera frame (pose in NED frame).
@@ -67,7 +75,8 @@ def cfg_to_image_collection(cfg: Dict):
 
     cameras, camimages = {}, {}
     cameras[0] = _base.Camera("SIMPLE_PINHOLE", K, cam_id=0, hw=img_hw)
-    for image_id in range(len(images)):
+
+    for image_id in range(num_imgs_to_use):
         pose_cam_in_world_frame = _base.CameraPose(cam_ext[image_id][:3, :3], cam_ext[image_id][:3,
                                                                                                 3])
         imname = image_name[image_id]
