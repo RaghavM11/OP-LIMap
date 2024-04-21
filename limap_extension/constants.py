@@ -26,14 +26,14 @@ CAM_INTRINSIC = np.array((
     (  0, 320, 240),
     (  0,   0,   1)), dtype=float)
 
-H_CAM_TO_NED = np.array((
+H_NED_TO_OCV = np.array((
     (0, 1, 0, 0),
     (0, 0, 1, 0),
     (1, 0, 0, 0),
     (0, 0, 0, 1)
 ), dtype=np.float32)
 
-H_NED_TO_CAM = np.array((
+H_OCV_TO_NED = np.array((
     (0, 0, 1, 0),
     (1, 0, 0, 0),
     (0, 1, 0, 0),

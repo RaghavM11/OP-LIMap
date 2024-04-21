@@ -27,7 +27,7 @@ from limap_extension.utils.io import read_all_rgbd, read_pose
 from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 from limap_extension.line_triangulation import line_triangulation
 # from limap_extension.img_cloud_transforms import cam2ned_single_pose, inverse_pose
-from limap_extension.img_cloud_transforms import ned2cam_single_pose
+from limap_extension.img_cloud_transforms import ned2cam_single_pose, cam2ned_single_pose
 # from limap_extension.line_triangulation import line_triangulation
 
 # TODO: Create a directory for storing all of our experiment configuration files so that the
@@ -51,6 +51,7 @@ DEFAULT_BASE_CONFIG_PATH = REPO_DIR / "cfgs" / "extension_experiments" / "defaul
 
 
 def cfg_to_image_collection(cfg: Dict):
+    print("\n\nWARNING!! Probably need to multiply by H_NED_TO_OCV")
     K = constants.CAM_INTRINSIC.astype(np.float32)
     img_hw = [480, 640]
 
@@ -65,12 +66,15 @@ def cfg_to_image_collection(cfg: Dict):
 
     cam_pose = read_pose(cfg["extension_dataset"]["dataset_path"], constants.ImageDirection.LEFT)
     cam_ext = []
-    for pose_cam_in_world_frame in cam_pose[:num_imgs_to_use]:
+    for pose_cam_ned_in_world_ned_frame in cam_pose[:num_imgs_to_use]:
         # The pose returned from read_pose is in world coordinate frame, which differs
         # from the camera coordinate frame that the intrinsic expects. To fix this, we need to
         # convert the world pose into the camera frame (pose in NED frame).
-        pose_cam_in_world_frame = ned2cam_single_pose(pose_cam_in_world_frame)
-        # cam_ext.append(get_transform_matrix_from_pose_array(pose_cam_in_world_frame))
+        # pose_cam_in_world_frame = ned2cam_single_pose(pose_cam_ned_in_world_ned_frame)
+        # pose_cam_in_world_frame = cam2ned_single_pose(pose_cam_ned_in_world_ned_frame)
+        # NED is only used when going between NED and opencv frame.
+        pose_cam_in_world_frame = get_transform_matrix_from_pose_array(
+            pose_cam_ned_in_world_ned_frame)
         cam_ext.append(pose_cam_in_world_frame)
 
     cameras, camimages = {}, {}

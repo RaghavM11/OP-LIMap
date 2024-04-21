@@ -11,7 +11,8 @@ REPO_DIR = Path(".").resolve().parents[0]
 sys.path.append(REPO_DIR.as_posix())
 
 from limap_extension.optical_flow import Args, OpticalFlow, RAFT_MODEL_PATH
-from limap_extension.img_cloud_transforms import reproject_img, uvz_ned_to_xyz_cam, get_uv_coords, index_img_with_uv_coords, xyz_cam_to_uvz_ned
+from limap_extension.img_cloud_transforms import (reproject_img, uvz_ocv_to_xyz_ned, get_uv_coords,
+                                                  index_img_with_uv_coords, xyz_ned_to_uvz_ocv)
 from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 
 
@@ -74,23 +75,23 @@ def flow_xyz_from_decomposed_motion(flow_up: np.ndarray,
         zs_2 = zs_1_in_frame_2
 
     # TODO: We should be able to accomplish this just with matrix multiplication.
-    # i.e. H_NED_TO_CAM @ zs_1_in_frame_2 @ K_inv @ [dus, dvs, 1]
+    # i.e. H_NED_TO_OCV @ zs_1_in_frame_2 @ K_inv @ [dus, dvs, 1]
     # That's more pseudocode than actual code since it ignores dimensionality issues.
-    xyz_1 = uvz_ned_to_xyz_cam(us, vs, zs_1_in_frame_2)
+    xyz_1 = uvz_ocv_to_xyz_ned(us, vs, zs_1_in_frame_2)
 
     # Trying this out.
-    xyz_2 = uvz_ned_to_xyz_cam(new_us_float, new_vs_float, zs_2)
+    xyz_2 = uvz_ocv_to_xyz_ned(new_us_float, new_vs_float, zs_2)
     # zs_2_orig = depth_2_cropped.reshape(-1)
     # zs_2 = depth_2_cropped.reshape(-1)
     # zs_2_shifted = index_img_with_uv_coords(us + dus, vs + dvs, depth_2_cropped)
-    # xyz_2 = uvz_ned_to_xyz_cam(us + dus, vs + dvs, zs_2_shifted)
+    # xyz_2 = uvz_ocv_to_xyz_ned(us + dus, vs + dvs, zs_2_shifted)
 
     if GRABBING_FROM_DEPTH_2:
         # planar_motion = np.zeros((depth_2_cropped.size, 2))
         flow_xyz = np.zeros((*flow_up.shape[:-1], 3))
         # Since there's a one-to-one correspondence between the u/vs here and the delta x/ys in
         # xyz_2, we project these values back into image 2.
-        us, vs, _ = xyz_cam_to_uvz_ned(xyz_2, is_rounding_to_int=True)
+        us, vs, _ = xyz_ned_to_uvz_ocv(xyz_2, is_rounding_to_int=True)
         flow_xyz[vs, us, :] = xyz_2 - xyz_1
     else:
         delta_xy = (xyz_1 - xyz_2)[:, :-1]
@@ -122,17 +123,17 @@ def flow_xyz_planar_motion_only(flow_up: np.ndarray, depth_1_cropped: np.ndarray
     zs_1_in_frame_2 = depth_1_cropped.reshape(-1)
 
     # TODO: We should be able to accomplish this just with matrix multiplication.
-    # i.e. H_NED_TO_CAM @ zs_1_in_frame_2 @ K_inv @ [dus, dvs, 1]
+    # i.e. H_NED_TO_OCV @ zs_1_in_frame_2 @ K_inv @ [dus, dvs, 1]
     # That's more pseudocode than actual code since it ignores dimensionality issues.
-    xyz_1 = uvz_ned_to_xyz_cam(us, vs, zs_1_in_frame_2)
+    xyz_1 = uvz_ocv_to_xyz_ned(us, vs, zs_1_in_frame_2)
 
     # Trying this out.
     zs_2 = zs_1_in_frame_2
-    xyz_2 = uvz_ned_to_xyz_cam(us + dus, vs + dvs, zs_2)
+    xyz_2 = uvz_ocv_to_xyz_ned(us + dus, vs + dvs, zs_2)
     # zs_2_orig = depth_2_cropped.reshape(-1)
     # zs_2 = depth_2_cropped.reshape(-1)
     # zs_2_shifted = index_img_with_uv_coords(us + dus, vs + dvs, depth_2_cropped)
-    # xyz_2 = uvz_ned_to_xyz_cam(us + dus, vs + dvs, zs_2_shifted)
+    # xyz_2 = uvz_ocv_to_xyz_ned(us + dus, vs + dvs, zs_2_shifted)
 
     delta_xy = (xyz_1 - xyz_2)[:, :-1]
     planar_motion = delta_xy.reshape(*flow_up.shape)

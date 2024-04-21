@@ -12,7 +12,7 @@ REPO_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(REPO_DIR.as_posix())
 
 from limap_extension.optical_flow import motion_segmentation, Args, OpticalFlow
-from limap_extension.img_cloud_transforms import reproject_img, uvz_ned_to_xyz_cam, xyz_cam_to_uvz_ned, index_img_with_uv_coords, get_uv_coords, imgs_to_clouds_np
+from limap_extension.img_cloud_transforms import reproject_img, uvz_ocv_to_xyz_ned, xyz_ned_to_uvz_ocv, index_img_with_uv_coords, get_uv_coords, imgs_to_clouds_np
 from limap_extension.transforms_spatial import get_transform_matrix_from_pose_array
 from limap_extension.bounding_box import BoundingBox
 
@@ -252,9 +252,9 @@ z_vals_1_valid = z_vals_1[coords_valid]
 us_fixed = u_coords_1_valid + valid_bbox.u_min
 vs_fixed = v_coords_1_valid + valid_bbox.v_min
 
-xyz_1 = uvz_ned_to_xyz_cam(u_coords_1_valid, v_coords_1_valid, z_vals_1_valid)
+xyz_1 = uvz_ocv_to_xyz_ned(u_coords_1_valid, v_coords_1_valid, z_vals_1_valid)
 rgb_vals_1 = rgb_1_cropped[v_coords_1_valid, u_coords_1_valid]
-xyz_2 = uvz_ned_to_xyz_cam(u_coords_2_valid, v_coords_2_valid, z_vals_2)
+xyz_2 = uvz_ocv_to_xyz_ned(u_coords_2_valid, v_coords_2_valid, z_vals_2)
 rgb_vals_2 = rgb_2_cropped[v_coords_2_valid, u_coords_2_valid]
 
 from limap_extension.point_cloud import PointCloud
