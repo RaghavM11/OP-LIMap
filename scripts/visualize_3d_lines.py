@@ -20,15 +20,27 @@ import limap.base as _base
 import limap.util.io as limapio
 import limap.visualize as limapvis
 
+#add rerun and it's dependencies
+import limap.structures as _structures
+
+import rerun as rr
+
+rr.init("my_data_generating_application")
+#rr.connect()  # Connect to a remote viewer
+
+
 def parse_to_config():
     # import argparse
     arg_parser = get_argparser()
     # arg_parser = argparse.ArgumentParser(description='visualize 3d lines')
     # arg_parser.add_argument('-i', '--input_dir', type=str, required=True, help='input line file. Format supported now: .obj, .npy, linetrack folder.')
     arg_parser.add_argument('-nv', '--n_visible_views', type=int, default=2, help='number of visible views')
+    #arg_parser.add_argument('--bpt3d_pl', type=str, default=None, help=".npz file for point-line associations") #add for rerun point-line association
+    #arg_parser.add_argument('--bpt3d_vp', type=str, default=None, help=".npz file for line-vanishing point associations") #add for rerun
+    #arg_parser.add_argument('--segments2d', type=str, default=None, help="directory containing detected 2D segments")# add for rerun
     # arg_parser.add_argument('--imagecols', type=str, default=None, help=".npy file for imagecols")
     #arg_parser.add_argument("--metainfos", type=str, default=None, help=".txt file for neighbors and ranges")
-    # arg_parser.add_argument('--mode', type=str, default="open3d", help="[pyvista, open3d]")
+    #arg_parser.add_argument('--mode', type=str, default="rerun", help="[pyvista, open3d, rerun]")  #rerun added
     # arg_parser.add_argument('--use_robust_ranges', default=False, action='store_true', help="whether to use computed robust ranges")
     # arg_parser.add_argument('--scale', type=float, default=1.0, help="scaling both the lines and the camera geometry")
     # arg_parser.add_argument('--cam_scale', type=float, default=1.0, help="scale of the camera geometry")
@@ -64,18 +76,21 @@ def parse_to_config():
     cfg = parse_config(args, unknown)
         
     cfg["metainfos"] = os.path.join(cfg["output_dir"], cfg["experiment_name"], "metainfos.txt")
-    cfg["imagecols"] = cfg_to_image_collection(cfg)
+    cfg["imagecols"] = None
     cfg["use_robust_ranges"] = False
-    cfg["mode"] = "open3d"
+    cfg["mode"] = "rerun"
     cfg["scale"] = 1.0
     cfg["cam_scale"] = 1.0
     return cfg
 
 def vis_3d_lines(lines, mode="open3d", ranges=None, scale=1.0):
+    print("\n\nHERE\n\n")
     if mode == "pyvista":
         limapvis.pyvista_vis_3d_lines(lines, ranges=ranges, scale=scale)
     elif mode == "open3d":
         limapvis.open3d_vis_3d_lines(lines, ranges=ranges, scale=scale)
+    elif mode == "rerun":
+        limapvis.rerun_vis_3d_lines(lines, ranges=ranges, scale=scale)
     else:
         raise NotImplementedError
 
@@ -83,15 +98,17 @@ def vis_reconstruction(linetracks, imagecols, mode="open3d", n_visible_views=4, 
     if mode == "open3d":
         VisTrack = limapvis.Open3DTrackVisualizer(linetracks)
     else:
-        raise ValueError("Error! Visualization with cameras is only supported with open3d.")
+        raise ValueError("Error! Visualization with cameras is only supported with open3d and rerun.")
     VisTrack.report()
     VisTrack.vis_reconstruction(imagecols, n_visible_views=n_visible_views, ranges=ranges, scale=scale, cam_scale=cam_scale)
 
-# Npy_linematching = REPO_DIR / "outputs" / "triangulation"/"line_matchings"
 
 def main(cfg):
-    lines_output_file = os.path.join(cfg["output_dir"], cfg["experiment_name"], "finaltracks")#, "all_2d_segs.npy")
+    lines_output_file = os.path.join(cfg["output_dir"], cfg["experiment_name"], "finaltracks")
+    print(lines_output_file)
     lines, linetracks = limapio.read_lines_from_input(lines_output_file)
+    print("Lines:", lines)
+    print("Linetracks:", linetracks)
     ranges = None
     if cfg["metainfos"] is not None:
         _, ranges = limapio.read_txt_metainfos(cfg["metainfos"])
@@ -106,10 +123,17 @@ def main(cfg):
         #     raise ValueError("Error! Input file {0} is not valid".format(cfg["imagecols"]))
         # imagecols = _base.ImageCollection(limapio.read_npy(cfg["imagecols"]).item())
         imagecols = cfg["imagecols"]
-        vis_reconstruction(linetracks, imagecols, mode=cfg["mode"], n_visible_views=cfg["n_visible_views"], ranges=ranges, scale=cfg["scale"], cam_scale=cfg["cam_scale"])
+        vis_reconstruction(linetracks, imagecols, mode=cfg["mode"], n_visible_views=cfg["n_visible_views"], ranges=ranges, scale=cfg["scale"], cam_scale=cfg["cam_scale"],segments2d=segments2d)
+
+        if cfg ["segments2d"] is None:
+            segments2d = None
+        else:
+            segments2d = limapio.read_all_segments_from_folder(lines_output_file)
     if cfg["dir_save"] is not None:
         out_dir_experiment = os.path.join(cfg["dir_save"], cfg["experiment_name"])
         limapio.save_obj(out_dir_experiment, lines)
+        
+    
 
 if __name__ == '__main__':
     cfg = parse_to_config()
