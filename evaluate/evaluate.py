@@ -4,12 +4,19 @@ import matplotlib.pyplot as plt
 import os
 
 
-SEG_DIR = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/seg_left' 
-FINALTRACKS_SAMPLE_PATH = '/home/saketp/Desktop/LIMap-Extension/tests/data/finaltracks_sample/'
+SEG_DIR = '../P001/seg_left' 
+FINALTRACKS_SAMPLE_PATH = '../tests/data/finaltracks_sample/'
 
-GROUND_TRUTH_DIR_1 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/ground_truth_mask/'
-GROUND_TRUTH_DIR_2 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P002_with_flow_masks/carwelding/Hard/P002/ground_truth_mask/'
-GROUND_TRUTH_DIR_3 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P003_with_flow_masks/carwelding/Hard/P003/ground_truth_mask/'
+GROUND_TRUTH_DIR_1 = '../P001/ground_truth_mask/'
+GROUND_TRUTH_DIR_2 = '../P002/ground_truth_mask/'
+GROUND_TRUTH_DIR_3 = '../P003/ground_truth_mask/'
+
+# SEG_DIR = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/seg_left' 
+# FINALTRACKS_SAMPLE_PATH = '/home/saketp/Desktop/LIMap-Extension/tests/data/finaltracks_sample/'
+
+# GROUND_TRUTH_DIR_1 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/ground_truth_mask/'
+# GROUND_TRUTH_DIR_2 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P002_with_flow_masks/carwelding/Hard/P002/ground_truth_mask/'
+# GROUND_TRUTH_DIR_3 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P003_with_flow_masks/carwelding/Hard/P003/ground_truth_mask/'
 
 
 def read_seg_mask():
@@ -36,7 +43,7 @@ def check_intersection(x1, y1, x2, y2, ix, iy):
     if x1 == x2: return abs(x1 - ix) < 1e-6
     if min(x1, x2) <= ix <= max(x1, x2) and min(y1, y2) <= iy <= max(y1, y2):
         line_equation = lambda x: (y2 - y1) / (x2 - x1) * (x - x1) + y1
-        if abs(line_equation(ix) - iy) < 1e-6: return True
+        if abs(line_equation(ix) - iy) < 1e-6: return True # Change '1e-6' with another threshold??
     return False
 
 
@@ -103,6 +110,7 @@ score_counts = {}
 
 # This function takes an insanely long time to run
 # TODO: Try this on a GPU
+# Update 1: Can't optimize with GPU, next best thing that can be done is make small batches and visualize
 for filename, line2d_array in line2d_arrays.items():
     score_counts[filename] = []
     print('done')
@@ -178,10 +186,3 @@ with open(output_file, 'a') as file:
 #             return distance
 #     # If the lines are parallel, compute the distance between start points
 #     return np.linalg.norm(line1_start - line2_start)
-
-
-# point1 = np.array([0, 0])
-# point2 = np.array([1, 0])
-
-# point3 = np.arrya2, 1
-# x3, y3 = 3, 1
