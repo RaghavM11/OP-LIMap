@@ -4,19 +4,19 @@ import matplotlib.pyplot as plt
 import os
 
 
-# SEG_DIR = '../P001/seg_left' 
-# FINALTRACKS_SAMPLE_PATH = '../tests/data/finaltracks_sample/'
+SEG_DIR = '../P001/seg_left' 
+FINALTRACKS_SAMPLE_PATH = '../tests/data/finaltracks_sample/'
 
-# GROUND_TRUTH_DIR_1 = '../P001/ground_truth_mask/'
-# GROUND_TRUTH_DIR_2 = '../P002/ground_truth_mask/'
-# GROUND_TRUTH_DIR_3 = '../P003/ground_truth_mask/'
+GROUND_TRUTH_DIR_1 = '../P001/ground_truth_mask/'
+GROUND_TRUTH_DIR_2 = '../P002/ground_truth_mask/'
+GROUND_TRUTH_DIR_3 = '../P003/ground_truth_mask/'
 
-SEG_DIR = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/seg_left' 
-FINALTRACKS_SAMPLE_PATH = '/home/saketp/Desktop/LIMap-Extension/tests/data/finaltracks_sample/'
+# SEG_DIR = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/seg_left' 
+# FINALTRACKS_SAMPLE_PATH = '/home/saketp/Desktop/LIMap-Extension/tests/data/finaltracks_sample/'
 
-GROUND_TRUTH_DIR_1 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/ground_truth_mask/'
-GROUND_TRUTH_DIR_2 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P002_with_flow_masks/carwelding/Hard/P002/ground_truth_mask/'
-GROUND_TRUTH_DIR_3 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P003_with_flow_masks/carwelding/Hard/P003/ground_truth_mask/'
+# GROUND_TRUTH_DIR_1 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/ground_truth_mask/'
+# GROUND_TRUTH_DIR_2 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P002_with_flow_masks/carwelding/Hard/P002/ground_truth_mask/'
+# GROUND_TRUTH_DIR_3 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P003_with_flow_masks/carwelding/Hard/P003/ground_truth_mask/'
 
 
 def read_seg_mask():
@@ -164,24 +164,7 @@ score_counts = {}
 #     for score in scores: print(score)
 
 
-# for linetrack, lines in line2d_arrays.items():
-#     scene_ids = image_id_arrays[linetrack]  
-    
-#     score = 0
-#     for scene_id in scene_ids:
-#         if scene_id in dyn_mask_list:  
-#             dyn_mask = dyn_mask_list[scene_id]
-#             locs = np.where(dyn_mask == 1)
-
-#             if locs[0].size > 0:
-#                 intersection = check_intersection_lines(lines, locs)
-
-#                 if not np.any(intersection): score += 1
-#         else: print(f"Dynamic mask not found for scene_id {scene_id}")
-#     print(f"Score for linetrack {linetrack}: {score}")
-
-
-output_file = 'linetrack_scores.txt'
+output_file = 'linetrack_scores_1.txt'
 
 with open(output_file, 'w') as file:
     for linetrack, lines in line2d_arrays.items():
