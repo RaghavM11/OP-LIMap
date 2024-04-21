@@ -53,32 +53,6 @@ def check_intersection(x1, y1, x2, y2, ix, iy):
     return False
 
 
-# def check_intersection_lines(lines, points):
-#     points = np.array(points) 
-#     x1, y1, x2, y2 = lines[:, 0], lines[:, 1], lines[:, 2], lines[:, 3]
-#     x, y = points[:, 0], points[:, 1]
-    
-#     m_lines = (y2 - y1) / (x2 - x1)
-#     b_lines = y1 - m_lines * x1
-
-#     vertical_lines = np.isinf(m_lines)
-#     vertical_x = x1[vertical_lines]
-    
-#     x_intersections = (y - b_lines[:, np.newaxis]) / m_lines[:, np.newaxis]
-#     x_intersections[vertical_lines] = vertical_x[:, np.newaxis]
-    
-#     intersection_within_x = np.logical_and(x >= np.minimum(x1, x2)[:, np.newaxis], 
-#                                            x <= np.maximum(x1, x2)[:, np.newaxis])
-#     intersection_within_y = np.logical_and(y >= np.minimum(y1, y2)[:, np.newaxis], 
-#                                            y <= np.maximum(y1, y2)[:, np.newaxis])
-    
-#     intersection_within_x = np.logical_and(abs(x - x_intersections) < 1e-6, intersection_within_x)
-#     intersection_mask = np.logical_and(intersection_within_x, intersection_within_y)
-#     any_intersection = np.any(intersection_mask, axis=1)
-
-#     return any_intersection
-
-
 def check_intersection_lines(lines, points):
     points_x, points_y = points  
     points = np.column_stack((points_x, points_y))  
@@ -104,7 +78,6 @@ def check_intersection_lines(lines, points):
     any_intersection = np.any(intersection_mask, axis=1)
 
     return any_intersection
-
 
 
 image_id_arrays = {}
@@ -144,8 +117,8 @@ for filename in image_id_arrays.keys():
 
 # Uncomment the 2 lines below to get the segmentation and dynamic masks; store them in your respective directories
 
-read_seg_mask()
-read_dyn_mask()
+# read_seg_mask()
+# read_dyn_mask()
 
 
 dyn_mask_list = {}
