@@ -75,7 +75,7 @@ for filename in image_id_arrays.keys():
     print(line2d_arrays[filename])
 
 
-# Uncomment the 2 lines below to get the segmentation and dynamic masks 
+# Uncomment the 2 lines below to get the segmentation and dynamic masks; store them in your respective directories
 # read_seg_mask()
 # read_dyn_mask()
 
@@ -116,15 +116,24 @@ for filename, line2d_array in line2d_arrays.items():
         score_counts[filename].append((ix, iy, score, count))
 
 
-for filename, scores in score_counts.items():
-    print(f"Track: {filename}")
-    print("Scores:")
-    for score in scores: print(score)
+# for filename, scores in score_counts.items():
+#     print(f"Track: {filename}")
+#     print("Scores:")
+#     for score in scores: print(score)
+
+output_file = 'all_intersection_scores.txt'
+with open(output_file, 'a') as file:
+    for filename, scores in score_counts.items():
+        file.write(f"Track: {filename}\n")
+        file.write("Scores:\n")
+        for score in scores: file.write(f"{score}\n")
+        file.write("\n") 
 
 
 
-# Extra code
+# Extra code 
 
+# Sample block for check_intersection()
 # x1, y1 = 1, 1
 # x2, y2 = 5, 5
 # x_point, y_point = 3, 3
