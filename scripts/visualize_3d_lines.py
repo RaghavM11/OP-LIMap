@@ -138,4 +138,3 @@ def main(cfg):
 if __name__ == '__main__':
     cfg = parse_to_config()
     main(cfg)
-
