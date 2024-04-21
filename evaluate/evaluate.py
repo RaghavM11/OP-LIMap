@@ -3,16 +3,22 @@ import cv2
 import matplotlib.pyplot as plt
 import os
 
-
-SEG_DIR = '../P001/seg_left' 
+ 
 FINALTRACKS_SAMPLE_PATH = '../tests/data/finaltracks_sample/'
+
+SEG_DIR_1 = '../P001/seg_left'
+SEG_DIR_2 = '../P002/seg_left'
+SEG_DIR_3 = '../P003/seg_left' 
 
 GROUND_TRUTH_DIR_1 = '../P001/ground_truth_mask/'
 GROUND_TRUTH_DIR_2 = '../P002/ground_truth_mask/'
 GROUND_TRUTH_DIR_3 = '../P003/ground_truth_mask/'
 
-# SEG_DIR = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/seg_left' 
 # FINALTRACKS_SAMPLE_PATH = '/home/saketp/Desktop/LIMap-Extension/tests/data/finaltracks_sample/'
+
+# SEG_DIR_1 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/seg_left'
+# SEG_DIR_2 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P002_with_flow_masks/carwelding/Hard/P002/seg_left'
+# SEG_DIR_3 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P003_with_flow_masks/carwelding/Hard/P003/seg_left'
 
 # GROUND_TRUTH_DIR_1 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P001_with_flow_masks/carwelding/Hard/P001/ground_truth_mask/'
 # GROUND_TRUTH_DIR_2 = '/home/saketp/Desktop/LIMap-Extension/datasets/carwelding_Hard_P002_with_flow_masks/carwelding/Hard/P002/ground_truth_mask/'
@@ -20,8 +26,8 @@ GROUND_TRUTH_DIR_3 = '../P003/ground_truth_mask/'
 
 
 def read_seg_mask():
-    for seg in os.listdir(SEG_DIR):
-        seg = os.path.join(SEG_DIR, seg)
+    for seg in os.listdir(SEG_DIR_3):
+        seg = os.path.join(SEG_DIR_3, seg)
         seg_mask = np.load(seg)
         dynamic_mask = np.zeros_like(seg_mask)
         dynamic_mask[seg_mask == 232] = 1
@@ -47,8 +53,35 @@ def check_intersection(x1, y1, x2, y2, ix, iy):
     return False
 
 
+# def check_intersection_lines(lines, points):
+#     points = np.array(points) 
+#     x1, y1, x2, y2 = lines[:, 0], lines[:, 1], lines[:, 2], lines[:, 3]
+#     x, y = points[:, 0], points[:, 1]
+    
+#     m_lines = (y2 - y1) / (x2 - x1)
+#     b_lines = y1 - m_lines * x1
+
+#     vertical_lines = np.isinf(m_lines)
+#     vertical_x = x1[vertical_lines]
+    
+#     x_intersections = (y - b_lines[:, np.newaxis]) / m_lines[:, np.newaxis]
+#     x_intersections[vertical_lines] = vertical_x[:, np.newaxis]
+    
+#     intersection_within_x = np.logical_and(x >= np.minimum(x1, x2)[:, np.newaxis], 
+#                                            x <= np.maximum(x1, x2)[:, np.newaxis])
+#     intersection_within_y = np.logical_and(y >= np.minimum(y1, y2)[:, np.newaxis], 
+#                                            y <= np.maximum(y1, y2)[:, np.newaxis])
+    
+#     intersection_within_x = np.logical_and(abs(x - x_intersections) < 1e-6, intersection_within_x)
+#     intersection_mask = np.logical_and(intersection_within_x, intersection_within_y)
+#     any_intersection = np.any(intersection_mask, axis=1)
+
+#     return any_intersection
+
+
 def check_intersection_lines(lines, points):
-    points = np.array(points) 
+    points_x, points_y = points  
+    points = np.column_stack((points_x, points_y))  
     x1, y1, x2, y2 = lines[:, 0], lines[:, 1], lines[:, 2], lines[:, 3]
     x, y = points[:, 0], points[:, 1]
     
@@ -66,11 +99,12 @@ def check_intersection_lines(lines, points):
     intersection_within_y = np.logical_and(y >= np.minimum(y1, y2)[:, np.newaxis], 
                                            y <= np.maximum(y1, y2)[:, np.newaxis])
     
-    intersection_within_x = np.logical_and(abs(x - x_intersections) < 1e-6, intersection_within_x)
+    intersection_within_x = np.logical_and(np.abs(x - x_intersections) < 1e-6, intersection_within_x)
     intersection_mask = np.logical_and(intersection_within_x, intersection_within_y)
     any_intersection = np.any(intersection_mask, axis=1)
 
     return any_intersection
+
 
 
 image_id_arrays = {}
@@ -110,8 +144,8 @@ for filename in image_id_arrays.keys():
 
 # Uncomment the 2 lines below to get the segmentation and dynamic masks; store them in your respective directories
 
-# read_seg_mask()
-# read_dyn_mask()
+read_seg_mask()
+read_dyn_mask()
 
 
 dyn_mask_list = {}
@@ -179,7 +213,6 @@ with open(output_file, 'w') as file:
         file.write(f"Score for linetrack {linetrack}: {score}\n")
 
 print(f"Scores saved to {output_file}")
-
 
 
 # Extra code 
