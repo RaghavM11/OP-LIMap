@@ -1,0 +1,10 @@
+# figures:
+#   optical_flow:
+# Path to the script that generates the figure, relative to repo root.
+# script_path: scripts/figure_generation/optical_flow.py
+scenario: "carwelding"
+difficulty: "Hard"
+trial: "P001"
+img_direction: "left"
+frame_1_idx: 95
+frame_2_idx: 97
