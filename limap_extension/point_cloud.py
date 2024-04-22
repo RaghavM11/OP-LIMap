@@ -1,4 +1,4 @@
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 
 import torch
 import numpy as np
@@ -14,27 +14,7 @@ from typing import Optional
 
 import torch
 
-
-class BaseTypeMixin(ABC):
-    """The base type mix-in that all CDCPD-types inherit from.
-
-    NOTE: All type containers should inherit from either UserList or UserDict *and* BaseTypeMixin.
-    This ensures that all containers for types behave as lists or dicts and have the methods
-    required for interacting with them defined in this class.
-    """
-    is_torch: bool
-
-    @abstractmethod
-    def to_torch(self, dtype: torch.dtype = torch.double, device: torch.device = "cpu"):
-        pass
-
-    @abstractmethod
-    def to_numpy(self):
-        pass
-
-    @abstractmethod
-    def copy(self):
-        pass
+from .base_type_mixin import BaseTypeMixin
 
 
 class PointCloud(BaseTypeMixin):
@@ -144,15 +124,16 @@ class PointCloud(BaseTypeMixin):
     #         bounds = (torch.from_numpy(bounds_np[0]), torch.from_numpy(bounds_np[1]))
     #     return bounds
 
-    # def get_xyz_bounds_numpy(self) -> Tuple[np.ndarray, np.ndarray]:
-    #     """Returns tuple of one dimensional numpy arrays for axis-wise min/max of coordinates"""
-    #     if self.is_torch:
-    #         bounds_torch = self.get_xyz_bounds_torch()
-    #         bounds = (bounds_torch[0].detach().cpu().numpy(),
-    #                   bounds_torch[1].detach().cpu().numpy())
-    #     else:
-    #         bounds = (np.min(self.xyz, axis=1), np.max(self.xyz, axis=1))
-    #     return bounds
+    def get_xyz_bounds_numpy(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Returns tuple of one dimensional numpy arrays for axis-wise min/max of coordinates"""
+        if self.is_torch:
+            bounds_torch = self.get_xyz_bounds_torch()
+            bounds = (bounds_torch[0].detach().cpu().numpy(),
+                      bounds_torch[1].detach().cpu().numpy())
+        else:
+            bounds = (np.min(self.xyz, axis=0), np.max(self.xyz, axis=0))
+        print(f"pc bounds shapes: {bounds[0].shape}, {bounds[1].shape}")
+        return bounds
 
     def downsample(self, voxel_size=0.02):
         """Performs voxel grid downsampling"""
@@ -172,15 +153,15 @@ class PointCloud(BaseTypeMixin):
 
         # Downsample using open3d.
         pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(self.xyz.T)
+        pcd.points = o3d.utility.Vector3dVector(self.xyz)
 
         if self.has_rgb:
-            pcd.colors = o3d.utility.Vector3dVector(self.rgb.T)
+            pcd.colors = o3d.utility.Vector3dVector(self.rgb)
 
         pcd_downsampled = pcd.voxel_down_sample(voxel_size=voxel_size)
 
-        self.xyz = np.asarray(pcd_downsampled.points).T
-        self.rgb = np.asarray(pcd_downsampled.colors).T
+        self.xyz = np.asarray(pcd_downsampled.points)
+        self.rgb = np.asarray(pcd_downsampled.colors)
 
         # Convert back to original datatype.
         if is_torch_orig:

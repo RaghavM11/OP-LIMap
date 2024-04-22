@@ -3,13 +3,15 @@ from typing import TYPE_CHECKING
 import plotly.graph_objects as go
 import numpy as np
 
-from cdcpd_torch.visualization.figure_factory_base import FigureFactoryBase
-from cdcpd_torch.visualization.plotly.util import (make_sliders, make_update_menus,
-                                                   FRAME_DURATION_MS_DEFAULT, TRACKING_MARKER_SIZE,
-                                                   POINT_CLOUD_OPACITY, POINT_CLOUD_MARKER_SIZE)
+from limap_extension.visualization.figure_factory_base import FigureFactoryBase
+from limap_extension.visualization.plotly.util import (make_sliders, make_update_menus,
+                                                       FRAME_DURATION_MS_DEFAULT,
+                                                       TRACKING_MARKER_SIZE, POINT_CLOUD_OPACITY,
+                                                       POINT_CLOUD_MARKER_SIZE)
 
 if TYPE_CHECKING:
-    from arm_clouds import PointCloud
+    # from arm_clouds import PointCloud
+    pass
 
 
 class FigureFactory(FigureFactoryBase):

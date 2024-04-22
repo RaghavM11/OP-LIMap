@@ -5,13 +5,13 @@ import torch
 import numpy as np
 import open3d as o3d
 
-# from arm_clouds import PointCloudList
+from limap_extension.point_cloud_list import PointCloudList
 from limap_extension.visualization.plotly.mesh_viz import MeshViz
 from limap_extension.visualization.plotly.gripper_mesh_viz import GripperMeshViz
 from limap_extension.visualization.plotly.util import FRAME_DURATION_MS_DEFAULT
 
-# if TYPE_CHECKING:
-#     from arm_clouds import PointCloud
+if TYPE_CHECKING:
+    from limap_extension.point_cloud import PointCloud
 #     from cdcpd_torch.data_utils.types.grippers import GrippersInfo
 
 
@@ -177,11 +177,12 @@ class FigureFactoryBase:
 
     def _update_bounds(self, xyz_mins: np.ndarray, xyz_maxes: np.ndarray):
         """Updates the bounds of the visualization given an item's min/max coordinates"""
-        min_stacked = np.stack((self._scene_bounds_min, xyz_mins), axis=0)
-        self._scene_bounds_min = np.min(min_stacked, axis=0)
+        print(f"FigureFactory bounds shapes: {self._scene_bounds_min.shape}, {xyz_mins.shape}")
+        min_stacked = np.stack((self._scene_bounds_min, xyz_mins), axis=1)
+        self._scene_bounds_min = np.min(min_stacked, axis=1)
 
-        max_stacked = np.stack((self._scene_bounds_max, xyz_maxes), axis=0)
-        self._scene_bounds_max = np.max(max_stacked, axis=0)
+        max_stacked = np.stack((self._scene_bounds_max, xyz_maxes), axis=1)
+        self._scene_bounds_max = np.max(max_stacked, axis=1)
 
     def _check_frame_length(self, name: str, num_frames_new: int):
         """Verifies that the item to be visualized has the correct number of frames"""

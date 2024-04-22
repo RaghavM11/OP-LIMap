@@ -4,7 +4,7 @@ from pathlib import Path
 import open3d as o3d
 import numpy as np
 
-from cdcpd_torch.visualization.plotly.util import MESH_OPACITY_DEFAULT
+from limap_extension.visualization.plotly.util import MESH_OPACITY_DEFAULT
 
 
 class MeshViz:

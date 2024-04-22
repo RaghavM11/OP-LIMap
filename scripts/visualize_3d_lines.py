@@ -164,6 +164,7 @@ def main(cfg):
             pc: PointCloud = None
             for i, (img, depth) in enumerate(zip(imgs, depths)):
                 # Should truly be in camera frame (NED)
+                # It is. X corresponds with the depth channel.
                 cloud, _ = imgs_to_clouds_np(img, depth, CAM_INTRINSIC)
                 cloud.normalize_rgb()
 
@@ -175,8 +176,35 @@ def main(cfg):
                 # Looks good but is off from the lines almost like a reflection
                 # pose_cam_to_world = H_NED_TO_OCV @ inverse_pose(
                 #     get_transform_matrix_from_pose_array(poses_world_frame[i]))
-                pose_cam_to_world = H_OCV_TO_NED @ inverse_pose(
-                    get_transform_matrix_from_pose_array(poses_world_frame[i]))
+                # pose_cam_to_world = H_OCV_TO_NED @ inverse_pose(
+                #     get_transform_matrix_from_pose_array(poses_world_frame[i]))
+
+                # pose_cam_to_world = H_NED_TO_OCV @ inverse_pose(
+                #     get_transform_matrix_from_pose_array(poses_world_frame[i]))
+
+                # pose_cam_to_world = H_NED_TO_OCV @ inverse_pose(
+                #     get_transform_matrix_from_pose_array(poses_world_frame[i])) @ H_OCV_TO_NED
+
+                # pose_cam_to_world = inverse_pose(
+                #     H_NED_TO_OCV @ get_transform_matrix_from_pose_array(
+                #         poses_world_frame[i]) @ H_OCV_TO_NED) @ H_NED_TO_OCV
+
+                # To get
+                # pose_wned_to_cam_ocv = get_transform_matrix_from_pose_array(poses_world_frame[i])
+                # pose_cam_ocv_to_wned = inverse_pose(pose_wned_to_cam_ocv)
+                # pose_cam_ocv_to_wned = H_OCV_TO_NED @ pose_cam_ocv_to_wned @ H_NED_TO_OCV
+                # pose_cam_to_world = get_transform_matrix_from_pose_array(poses_world_frame[i])
+                # pose_cam_to_world = H_NED_TO_OCV @ pose_cam_to_world @ H_OCV_TO_NED
+                # pose_cam_to_world = pose_cam_ocv_to_wned @ pose_cam_to_world
+
+                cloud = transform_cloud(cloud, H_NED_TO_OCV)
+
+                pose_cam_in_world_frame = H_NED_TO_OCV @ get_transform_matrix_from_pose_array(
+                    poses_world_frame[i])
+                pose_cam_to_world = inverse_pose(pose_cam_in_world_frame)
+
+                # pose_cam_to_world = H_NED_TO_OCV @ inverse_pose(
+                #     get_transform_matrix_from_pose_array(poses_world_frame[i]))
 
                 cloud = transform_cloud(cloud, pose_cam_to_world)
                 # pcl.append(cloud)

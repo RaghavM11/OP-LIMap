@@ -3,10 +3,11 @@ from typing import TYPE_CHECKING, Optional
 import open3d as o3d
 import numpy as np
 
-from cdcpd_torch.visualization.plotly.mesh_viz import MeshViz
+from limap_extension.visualization.plotly.mesh_viz import MeshViz
 
 if TYPE_CHECKING:
-    from cdcpd_torch.data_utils.types.grippers import GripperInfoSingle
+    # from limap_extension.data_utils.types.grippers import GripperInfoSingle
+    pass
 
 GRIPPER_MESH_KWARGS = {
     "cylinder_radius": 0.025,

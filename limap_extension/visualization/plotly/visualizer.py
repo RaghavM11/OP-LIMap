@@ -5,17 +5,18 @@ from warnings import warn
 import numpy as np
 import plotly.graph_objects as go
 
-from arm_clouds import PointCloudList
-from cdcpd_torch.visualization.plotly.util import (make_sliders, make_update_menus,
-                                                   FRAME_DURATION_MS_DEFAULT, TRACKING_MARKER_SIZE,
-                                                   POINT_CLOUD_OPACITY, POINT_CLOUD_MARKER_SIZE,
-                                                   MESH_OPACITY_DEFAULT)
-from cdcpd_torch.visualization.plotly.mesh_viz import MeshViz
+from limap_extension.point_cloud_list import PointCloudList
+from limap_extension.visualization.plotly.util import (make_sliders, make_update_menus,
+                                                       FRAME_DURATION_MS_DEFAULT,
+                                                       TRACKING_MARKER_SIZE, POINT_CLOUD_OPACITY,
+                                                       POINT_CLOUD_MARKER_SIZE,
+                                                       MESH_OPACITY_DEFAULT)
+from limap_extension.visualization.plotly.mesh_viz import MeshViz
 
 import open3d as o3d
 
 if TYPE_CHECKING:
-    from arm_clouds import PointCloud
+    from limap_extension.point_cloud import PointCloud
 
 
 # TODO: Refactor to a class and have a method in the class for adding multiple tracked

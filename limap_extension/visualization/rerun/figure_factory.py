@@ -10,13 +10,13 @@ from limap_extension.visualization.rerun.rr_util import log_def_obj_config
 # from limap_extension.data_utils.stopwatch import Stopwatch
 FRAME_DURATION_MS_DEFAULT = 50
 
-# if TYPE_CHECKING:
-#     from arm_clouds import PointCloud
+if TYPE_CHECKING:
+    from limap_extension.point_cloud import PointCloud
 
 RR_TIMELINE_NAME = "stable_time"
 MS_TO_SECONDS = 1e-3
 TRACKING_MARKER_SIZE = 0.01
-POINT_CLOUD_MARKER_SIZE = 0.005
+POINT_CLOUD_MARKER_SIZE = 0.05
 TRACKING_MARKER_COLOR = np.array((1.0, 0.0, 0.0))
 POINT_CLOUD_MARKER_COLOR = np.array((0.0, 0.0, 1.0))
 
@@ -29,7 +29,9 @@ class FigureFactory(FigureFactoryBase):
     def make_fig(self,
                  is_using_browser: bool = False,
                  is_verbose: bool = False,
-                 t_min_secs: Optional[bool] = None):
+                 t_min_secs: Optional[bool] = None,
+                 rr_name: Optional[str] = None,
+                 do_init: bool = True):
         """Initializes the rerun viewer and logs the frames
 
         NOTE: Rerun will drop messages if the Python script finishes (thus, shutting down the
@@ -37,11 +39,18 @@ class FigureFactory(FigureFactoryBase):
         """
         # s = Stopwatch("Rerun Figure Creation", is_printing=is_verbose)
         spawn = not is_using_browser
-        rr.init("CDCPD_torch_visualization", spawn=spawn)
-        if is_using_browser:
-            rr.serve()
+        if rr_name is None:
+            rr_name = "LIMAP Line Visualization"
 
-        rr.set_time_seconds(RR_TIMELINE_NAME, 0)
+        if do_init:
+            rr.init(rr_name, spawn=spawn)
+            if is_using_browser:
+                rr.serve()
+
+            rr.set_time_seconds(RR_TIMELINE_NAME, 0)
+        else:
+            # rr.connect()
+            pass
 
         self._make_frames()
         # t_elapsed = s.stop()
@@ -56,7 +65,7 @@ class FigureFactory(FigureFactoryBase):
         #         time.sleep(t_delta)
 
     def _make_single_frame(self, frame_idx: int):
-        rr.set_time_seconds(RR_TIMELINE_NAME, frame_idx * self._frame_duration_ms * MS_TO_SECONDS)
+        # rr.set_time_seconds(RR_TIMELINE_NAME, frame_idx * self._frame_duration_ms * MS_TO_SECONDS)
 
         for name, vertex_list in self._tracking_history.items():
             c: 'PointCloud' = vertex_list[frame_idx].copy()
@@ -65,10 +74,12 @@ class FigureFactory(FigureFactoryBase):
 
         for name, cloud_list in self._clouds.items():
             c: 'PointCloud' = cloud_list[frame_idx].copy()
-            rr.log(
-                name,
-                rr.Points3D(**c.form_rerun_kwargs(radii=POINT_CLOUD_MARKER_SIZE,
-                                                  color=POINT_CLOUD_MARKER_COLOR)))
+            if c.has_rgb:
+                c.normalize_rgb()
+            else:
+                c.set_uniform_rgb(POINT_CLOUD_MARKER_COLOR)
+            rr.log(name,
+                   rr.Points3D(**c.form_rerun_kwargs(radii=POINT_CLOUD_MARKER_SIZE, color=c.rgb)))
 
         for name, mesh_list in self._mesh_vizs_dynamic.items():
             m = mesh_list[frame_idx]
