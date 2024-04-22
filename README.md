@@ -1,9 +1,6 @@
 # LIMap-Extension
 #mobilerobotics project
-##Example
-
-![Image Alt text](/example_images/Ocean_line2D.png  "Ocean_Tartan")
-
+##Example-Car Factory
 
 ![Image Alt text](example_images/example_pc_vis.png   "Car_Factory")
 
