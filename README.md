@@ -1,5 +1,12 @@
 # LIMap-Extension
 #mobilerobotics project
+##Example
+
+![Image Alt text](/example_images/Ocean_line2D.png  "Ocean_Tartan")
+
+
+![Image Alt text](example_images/example_pc_vis.png   "Car_Factory")
+
 
 # Installation
 
@@ -70,11 +77,34 @@ pipenv install -vv -e ./limap/third-party/[THIRD PARTY PACKAGE THAT WASN'T FOUND
 
 ## Installation via Anaconda
 
-TODO: Raghav?
+1. Setup Conda env. (should have miniconda installed)
+````
+conda create -n myenv python=3.9 
+````
+2. Activate conda 
 
+```
+conda activate myenv
+
+```
+3. Install dependecies in conda env following Via Installation Script (mentioned above)
+
+4. install package
+
+```
+python -m pip install -Ive ./limap 
+```
+
+4. To double check if the package is successfully installed:
+```
+python -c "import limap"
+```
 ## Setup
 
-TODO: Downloader script for sample dataset uploaded to drive (probably small, ~100 images)
+1. For above example the files can be found [here](https://drive.google.com/drive/folders/1uz8lHUS8D6lQXlfJ6VKLXTvqKEMv0B_E?usp=sharing) 
+
+##todo script
+Downloader script for sample dataset uploaded to drive (small, ~100 images)
 
 
 # For running examples
