@@ -111,14 +111,14 @@ def uvz_ocv_to_xyz_ned(us: np.ndarray,
     zs = zs * depth_units_to_tracked_units
 
     # xyzs_img = np.stack((xs, ys, zs), axis=1)
-    xyzs_ned = np.stack((xs, ys, zs), axis=1)
+    xyzs_opencv_frame = np.stack((xs, ys, zs), axis=1)
     # print("xyzs_img shape:", xyzs_ned.shape)
     # print("xyzs_ned maxes:", np.max(xyzs_ned, axis=0))
     # xyzs_cam = (H_IMG_TO_CAM @ np.hstack([xyzs_img, np.ones((xyzs_img.shape[0], 1))]).T).T[:, :-1]
     # xyzs_cam = tform_coords(np.linalg.inv(H_IMG_TO_CAM), xyzs_img)
-    xyzs_cam = tform_coords(H_NED_TO_OCV, xyzs_ned)
+    xyzs_cam_ned_frame = tform_coords(H_OCV_TO_NED, xyzs_opencv_frame)
     # xyzs_cam =
-    return xyzs_cam
+    return xyzs_cam_ned_frame
     # return xyzs_ned
 
 
@@ -127,8 +127,7 @@ def xyz_ned_to_uvz_ocv(
         is_rounding_to_int: bool = False,
         intrinsic: np.ndarray = CAM_INTRINSIC,
         depth_units_to_tracked_units: float = METERS_TO_METERS) -> Tuple[np.ndarray, np.ndarray]:
-    # xyz = tform_coords(H_IMG_TO_CAM, xyz)
-    xyz = tform_coords(H_OCV_TO_NED, xyz)
+    xyz = tform_coords(H_NED_TO_OCV, xyz)
     fu = intrinsic[0, 0]
     fv = intrinsic[1, 1]
 
@@ -169,46 +168,9 @@ def imgs_to_clouds_np(
     This has a lot of commented code that can be used to filter out points given a 2D (segmentation)
     mask. I don't think we'll need this but I'm keeping it in case we do.
     """
-    # fx = intrinsic[0, 0]
-    # fy = intrinsic[1, 1]
-
-    # center_x = intrinsic[0, 2]
-    # center_y = intrinsic[1, 2]
-
-    # constant_x = 1.0 / fx
-    # constant_y = 1.0 / fy
-
     U, V = get_uv_coords(depth_img.shape[0], depth_img.shape[1])
 
-    # print("U[:10]:", U[:10])
-    # print("V[:10]:", V[:10])
-
-    # Now we get the coordinates of the corners. This helps down the line to crop the view to only
-    # the parts of the image that are visible in the other image.
-    # Due to numpy flattening in row-major convention, corner coordinates are:
-    # 0, img_rows - 1, img_rows * img_cols, img_rows * img_cols + img_cols
-    # corner_idxs = {
-    #     "upper_left": 0,
-    #     # "upper_right": -depth_img.shape[1],
-    #     # "lower_left": depth_img.shape[1] - 1,
-    #     "upper_right": depth_img.shape[1] - 1,
-    #     "lower_left": -depth_img.shape[1],
-    #     "lower_right": -1
-    # }
-    # corner_idxs = CornerIdxs(0, -depth_img.shape[0], depth_img.shape[0] - 1, -1)
-    # corner_idxs = CornerIdxs(0, depth_img.shape[0] - 1, -depth_img.shape[0], -1)
     corner_idxs = CornerIdxs(0, depth_img.shape[1] - 1, -depth_img.shape[1], -1)
-    # corner_idxs = [0, -depth_img.shape[1], depth_img.shape[1] - 1, -1]
-    # corner_idxs = [0, depth_img.shape[1] - 1, -depth_img.shape[1], -1]
-
-    # print("U[corner_idxs.upper_left]", U[corner_idxs.upper_left])
-    # print("V[corner_idxs.upper_left]", V[corner_idxs.upper_left])
-    # print("U[corner_idxs.upper_right]", U[corner_idxs.upper_right])
-    # print("V[corner_idxs.upper_right]", V[corner_idxs.upper_right])
-    # print("U[corner_idxs.lower_left]", U[corner_idxs.lower_left])
-    # print("V[corner_idxs.lower_left]", V[corner_idxs.lower_left])
-    # print("U[corner_idxs.lower_right]", U[corner_idxs.lower_right])
-    # print("V[corner_idxs.lower_right]", V[corner_idxs.lower_right])
 
     # Extremely heavy handed but I want to be sure I've got this right.
     assert U[corner_idxs.upper_left] == 0
@@ -219,10 +181,6 @@ def imgs_to_clouds_np(
     assert V[corner_idxs.lower_left] == depth_img.shape[0] - 1
     assert U[corner_idxs.lower_right] == depth_img.shape[1] - 1
     assert V[corner_idxs.lower_right] == depth_img.shape[0] - 1
-    # print("Upper left:", U[corner_idxs[0]], V[corner_idxs[0]])
-    # print("Upper right:", U[corner_idxs[1]], V[corner_idxs[1]])
-    # print("Lower left:", U[corner_idxs[2]], V[corner_idxs[2]])
-    # print("Lower right:", U[corner_idxs[3]], V[corner_idxs[3]])
 
     depth_flat = depth_img.flatten()
 
@@ -235,12 +193,12 @@ def imgs_to_clouds_np(
 
     # Z = 0 indicates the point is invalid in the depth images that I've been working with in the
     # lab. I'm not sure if TartanAir has a similar convention.
-    where_depth_valid = zs != 0.0
+    where_depth_valid = xs != 0.0
 
     num_invalid_depths = np.count_nonzero(~where_depth_valid)
     if num_invalid_depths > 0:
         raise ValueError(f"Found {num_invalid_depths} invalid depths in the depth image. Indicates "
-                         "coordinate transform issue since z should be depth and not zero in "
+                         "coordinate transform issue since x should be depth and not zero in "
                          "tartanair dataset.")
 
     # This can be used to apply a segmentation mask so that we get a segmented point cloud. I don't
