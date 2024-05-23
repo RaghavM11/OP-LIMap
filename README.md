@@ -78,6 +78,7 @@ pipenv install -vv -e ./limap/third-party/[THIRD PARTY PACKAGE THAT WASN'T FOUND
 ````
 conda create -n myenv python=3.9 
 ````
+
 2. Activate conda 
 
 ```
@@ -85,7 +86,7 @@ conda activate myenv
 
 ```
 3. Install dependecies in conda env following Via Installation Script (mentioned above)
-
+--Change CUDA version to 11.8 [if using 12]
 4. install package
 
 ```
