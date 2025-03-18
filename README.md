@@ -1,6 +1,6 @@
 # OP-LIMap
-#mobilerobotics project
-##Example-Car Factory
+# ROB 530: Mobile Robotics W24 Project
+## Example-Car Factory
 
 ![Image Alt text](example_images/example_pc_vis.png   "Car_Factory")
 
@@ -23,7 +23,6 @@ There's multiple ways to install this correctly, but Dylan likes `pipenv` and it
 Tested on:
 - Ubuntu 20.04
 - CMake version 3.17
--
 
 The process is:
 
